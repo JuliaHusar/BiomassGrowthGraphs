@@ -1,0 +1,19 @@
+[
+  { "date":  "3/20/25", "xValue": -12, "yValue": 3.35375 },
+  { "date": "3/21/25", "xValue": -11, "yValue": 3.39146},
+  { "date": "3/31/25", "xValue": 0, "yValue": 3.806281 },
+  { "date": "4/17/25", "xValue": 16, "yValue": 4.409659 },
+  { "date": "4/18/25", "xValue": 17, "yValue": 4.447370 },
+  { "date": "4/19/25", "xValue": 18, "yValue": 4.485081 },
+  { "date": "4/20/25", "xValue": 19, "yValue": 4.522792 },
+  { "date": "4/21/25", "xValue": 20, "yValue": 4.560503 },
+  { "date": "4/22/25", "xValue": 21, "yValue": 4.598214 },
+  { "date": "4/23/25", "xValue": 22, "yValue": 4.635926 },
+  { "date": "4/24/25", "xValue": 23, "yValue": 4.673637 },
+  { "date": "4/25/25", "xValue": 24, "yValue": 4.711348 },
+  { "date": "4/26/25", "xValue": 25, "yValue": 4.749059 },
+  { "date": "4/27/25", "xValue": 26, "yValue": 4.786770 },
+  { "date": "4/28/25", "xValue": 27, "yValue": 4.824481 },
+  { "date": "4/29/25", "xValue": 28, "yValue": 4.862192 },
+  { "date": "4/30/25", "xValue": 29, "yValue": 4.899903 }
+]

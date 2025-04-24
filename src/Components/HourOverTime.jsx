@@ -5,21 +5,28 @@ import {convertToDate, convertToHour} from "../HelperFunctions.js";
 
 const HourOverTime = () => {
     const ref = useRef();
+    const legendRef = useRef();
     const [historicData, setHistoricData] = useState([]);
     const [selectedData, setSelectedData] = useState(null);
-    const width = 1400;
-    const height = 900;
-    const margin = {top: 50, right: 50, bottom: 70, left: 70};
+    const width = 2000
+    const height = 800;
+    const margin = {top: 80, right: 50, bottom: 70, left: 70};
+    const [granularity, setGranularity] = useState(10);
+    const [originalData, setOriginalData] = useState([]);
+
     useEffect(() => {
         const getCSV = async () => {
             try{
-                const response = await fetch ('/April4Co2Cleaned.csv')
+                const response = await fetch ('/April17Cleaned.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
                     complete: (results) => {
                         results.data.pop();
-                        setHistoricData(results.data)
+                        const filtered = results.data.filter((_, index) => index % 10 === 0);
+                        setOriginalData(filtered);
+                        setHistoricData(filtered);
+                        console.log(filtered)
                     },
                     header:true,
                     dynamicTyping: true,
@@ -38,9 +45,12 @@ const HourOverTime = () => {
             .attr('width', width)
             .attr('height', height);
 
+        svg.selectAll('*').remove();
+
         const tooltip = d3.select('#tooltip');
         const luxIn = historicData.map(d => d.front_lux_values);
-        const allDates = Array.from(d3.group(historicData, d => convertToDate(d.LocalTime)).keys()).sort();
+        const co2In = historicData.map(d => d.Co2_In);
+        const allDates = Array.from(d3.group(historicData, d => convertToDate(d.LocalTime)).keys()).sort((a, b) => new Date(a) - new Date(b));
 
         const x = d3.scaleBand()
             .domain(allDates)
@@ -48,12 +58,16 @@ const HourOverTime = () => {
             .padding(0.1);
 
         const y = d3.scaleLinear()
-            .domain([0, 24 * 60 * 60])
+            .domain([5 * 60 * 60, 24 * 60 * 60])
             .range([margin.top, height - margin.bottom]);
 
         const radius = d3.scaleSqrt()
             .domain([0, d3.max(luxIn)])
             .range([0, 20]);
+
+        const colorScale = d3.scaleSequential()
+            .domain([(d3.min(historicData, d => d.Co2_In)-100), (d3.max(historicData, d => d.Co2_In)-100)])
+            .interpolator(d3.interpolateGreens);
 
         svg.append('g')
             .attr('transform', `translate(0,${height - margin.bottom})`)
@@ -62,7 +76,7 @@ const HourOverTime = () => {
         svg.append('g')
             .attr('transform', `translate(${margin.left},0)`)
             .call(d3.axisLeft(y)
-                .ticks(24)
+                .ticks(19)
                 .tickFormat(d => {
                     const hour = Math.floor(d / 3600);
                     return `${String(hour).padStart(2, '0')}:00`;
@@ -97,26 +111,101 @@ const HourOverTime = () => {
                 return y(secondsInDay);
             })
             .attr('r', d => radius(d.front_lux_values))
-            .attr('fill', 'steelblue')
+            .attr('fill', d => colorScale(d.Co2_In))
             .on('mouseover', (event, d) => {
                 tooltip
                     .style('opacity', 1)
-                    .html(`Date: ${convertToDate(d.LocalTime)}<br>Time: ${new Date(d.LocalTime).toLocaleTimeString()}<br>Lux: ${d.front_lux_values}`)
+                    .html(`Date: ${convertToDate(d.LocalTime)}<br>Time: ${new Date(d.LocalTime).toLocaleTimeString()}<br>Lux: ${d.front_lux_values}<br>Co2: ${d.Co2_In}`)
                     .style('left', `${event.pageX + 5}px`)
                     .style('top', `${event.pageY - 28}px`);
             })
             .on('mouseout', () => {
                 tooltip.style('opacity', 0);
             });
+
+        const legendSvg = d3.select(legendRef.current)
+            .attr('width', width)
+            .attr('height', 200);
+        legendSvg.selectAll('*').remove();
+
+        const legend = legendSvg.append('g')
+            .attr('class', 'legend')
+            .attr('transform', `translate(${width - margin.right + 20}, ${margin.top})`);
+
+        const circleLegend = legendSvg.append('g')
+            .attr('class', 'circle-legend')
+            .attr('transform', `translate(${width - margin.right - 200}, ${margin.top})`);
+
+        const legendData = [
+            { label: 'Low CO2 Input', color: colorScale(d3.min(historicData, d => d.Co2_In)) },
+            { label: 'Medium CO2 Input', color: colorScale((d3.min(historicData, d => d.Co2_In) + d3.max(historicData, d => d.Co2_In)) / 2) },
+            { label: 'High CO2 Input', color: colorScale(d3.max(historicData, d => d.Co2_In)) }
+        ];
+
+        const circleLegendData = [
+            {label: "Low Lux", radius: radius(d3.min(luxIn) + d3.max(luxIn) / 4)},
+            {label: "Medium Lux", radius: radius((d3.min(luxIn) + d3.max(luxIn)) / 2)},
+            {label: "High Lux", radius: radius(d3.max(luxIn))}
+        ]
+
+        legendData.forEach((item, index) => {
+            legend.append('rect')
+                .attr('x', -300)
+                .attr('y', index * 20 -20)
+                .attr('width', 15)
+                .attr('height', 15)
+                .attr('fill', item.color);
+
+            legend.append('text')
+                .attr('x', -280)
+                .attr('y', index * 20 - 10)
+                .style('font-size', '12px')
+                .text(item.label);
+        });
+
+        circleLegendData.forEach((item, index) => {
+            circleLegend.append('circle')
+                .attr('cx', -200)
+                .attr('cy', index * 45 -20)
+                .attr('r', item.radius)
+                .attr('fill', 'none')
+                .attr('stroke', 'black');
+
+            circleLegend.append('text')
+                .attr('x', -170)
+                .attr('y', index * 45 - 20)
+                .style('font-size', '12px')
+                .text(item.label);
+        });
+
     }, [historicData]);
 
     const closeModal = () => {
         setSelectedData(null);
     };
 
+    const handleDrag = (event) => {
+        const sliderValue = event.target.value;
+        const maxSliderValue = 10;
+        const granularity = maxSliderValue - sliderValue + 1;
+        setGranularity(sliderValue);
+        const filteredData = originalData.filter((_, index) => index % granularity === 0);
+        setHistoricData(filteredData);
+    };
+
     return (
-        <div className='border-2 border-gray-400 rounded-2xl h-full w-full flex flex-col relative'>
-            <svg ref={ref}></svg>
+        <div className='border-2 border-gray-400 rounded-2xl h-full w-full flex flex-col'>
+            <div className='absolute'>
+                <div id='granularity-slider' className=' top-0 right-0'>
+                    <input type="range" min='0' max='10' value={granularity} onChange={handleDrag} className='w-1/12'/>
+                </div>
+                <svg ref={legendRef}></svg>
+            </div>
+            <div className='svg-container'
+                 style={{width: '100%', height: '100%', overflow: 'scroll'}}>
+
+                <svg ref={ref}></svg>
+            </div>
             <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
 
             {selectedData && (

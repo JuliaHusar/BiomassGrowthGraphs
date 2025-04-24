@@ -12,5 +12,12 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s;
+  z-index: 100;
 }
 
+.svg-container {
+  width: 2000px;
+  height: 1000px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+}

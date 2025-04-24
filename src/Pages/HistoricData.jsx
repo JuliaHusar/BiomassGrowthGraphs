@@ -4,6 +4,8 @@ import Papa from "papaparse";
 import '../App.css';
 import {convertToDate} from "../HelperFunctions.js";
 import HourOverTime from "../Components/HourOverTime.jsx";
+import axios from "axios";
+import HourOverTimeCo2 from "../Components/HourOverTimeCo2.jsx";
 
 const HistoricData = () => {
     const ref = useRef();
@@ -15,7 +17,20 @@ const HistoricData = () => {
     useEffect(() => {
         const getCSV = async () => {
             try{
-                const response = await fetch ('/April4Co2Cleaned.csv')
+                const response = await fetch ('/April17Cleaned.csv')
+                /*
+                const response = await axios.post('http://localhost:3000/api/getData',
+                    {
+                        sheetName: ["lux_in", "lux_out", "co2_in", "co2_out"]
+                    },
+                    {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                 */
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -212,7 +227,7 @@ const HistoricData = () => {
                     </div>
                 </div>
             )}
-            <HourOverTime/>
+            <HourOverTimeCo2/>
         </div>
     );
 }

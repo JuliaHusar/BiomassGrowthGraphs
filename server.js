@@ -48,7 +48,7 @@ function returnSelectedSheet(sheetValue){
 }
 
 
-function calibrateTime(data){
+function calibrateTime(data) {
     const adjustedData = {};
 
     for (const [sheetName, rows] of Object.entries(data)) {
@@ -57,18 +57,29 @@ function calibrateTime(data){
 
             const timeIndex = 0;
             const date = new Date(row[timeIndex]);
-            date.setHours(date.getHours() - 5);
+            date.setHours(date.getHours() - 5); // Adjust time
             row[timeIndex] = date.toISOString();
             return row;
+        }).sort((a, b) => {
+            if (a[0] === "time" || b[0] === "time") return 0;
+            return new Date(a[0]) - new Date(b[0]);
         });
     }
 
     return adjustedData;
-
 }
 
 function cleanData(dataLists) {
     let adjustedData = calibrateTime(dataLists);
+
+    // Filter out rows with null or undefined values
+    for (const [sheetName, rows] of Object.entries(adjustedData)) {
+        adjustedData[sheetName] = rows.filter((row, index) => {
+            if (index === 0) return true; // Keep the header row
+            return row.every(value => value !== null && value !== undefined);
+        });
+    }
+
     const combinedData = new Map();
     const headers = new Map();
 
@@ -110,8 +121,9 @@ function cleanData(dataLists) {
 This will be called for a total of three graphs (as of now). One that displays data at an minute level over hours and days, one that is purely daily,
  and one that will be for an entire year. See Tableau Prep for more information on how data should be cleaned.
  */
-app.get('/api/getData', async (req, res) => {
-    const requestedDataTypes = req.body.sheetName; //Array of data types user wants
+app.post('/api/getData', async (req, res) => {
+    const requestedDataTypes = req.body.sheetName;
+    console.log(requestedDataTypes);
     let selectedDataRanges = [];
     const retrievedData = {};
 

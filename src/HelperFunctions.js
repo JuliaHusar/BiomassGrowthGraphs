@@ -14,3 +14,24 @@ export function convertToHour(dateString) {
         second: 'numeric'
     });
 }
+export function datesWithinRange(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const dates = [];
+
+    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+
+        dates.push(new Date(d).toDateString());
+    }
+    return dates;
+}
+
+export function aggregateDataIntoDayParts(dataType, granularity, date, data) {
+    const filteredDates = data.filter((dataPoint) => {
+        console.log(dataPoint)
+        const sensorDate = new Date(dataPoint.LocalTime)
+        const datePassed = date.toDateString();
+        return sensorDate === datePassed;
+    });
+    console.log(filteredDates);
+}
