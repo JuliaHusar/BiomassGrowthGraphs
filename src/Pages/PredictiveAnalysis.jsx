@@ -15,7 +15,7 @@ const PredictiveAnalysis = () => {
 
     return(
         <div className='flex flex-row w-full'>
-            <div className='w-2/3'>
+            <div className='w-'>
                 {selectedView === 'input' ?
                     <InputVariableInterface/> :
                     <InputVariableInterface/>
