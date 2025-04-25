@@ -16,6 +16,7 @@ const ProgressGauge  = () => {
         .attr("height", 50)
         .attr("fill", "none")
         .attr("stroke", "black")
+        .attr("rx", 10);
     return(
         <div className='flex w-full justify-center items-center'>
             <svg ref={progressBarRef}></svg>

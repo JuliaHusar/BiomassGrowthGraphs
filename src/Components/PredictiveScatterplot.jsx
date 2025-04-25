@@ -3,10 +3,10 @@ import Papa from "papaparse";
 import * as d3 from "d3";
 import ProgressGauge from "./ProgressGauge.jsx";
 import {
-    calculateLogarithmicRegression,
     getAccurateXValues,
     calculateLinearRegression,
-    returnMultivariateRegression
+    returnMultivariateRegression,
+    getSlopeThreshold, calculateLogisticRegression, calculateLogarithmicRegression
 } from "./MathFunctions.js";
 import predictedValues from "./../../public/PredictedValues.json"
 
@@ -80,18 +80,21 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
         const combinedData = [...biomassData, ...transformPredictedValuesForCombination];
         const combinedDates = combinedData.map((d) => new Date(d.collection_date));
         const combinedGPerL = combinedData.map((d) => d.Biomass_g_L);
+        const combinedLogData = [{"collection_date": '3/19/25', 'Biomass_g_L': 3.038746667}, ...combinedData];
+        const combinedLogDates = combinedLogData.map((d) => new Date(d.collection_date));
         const allXValues = getAccurateXValues(combinedData);
+        console.log(getSlopeThreshold(biomassData));
 
         svg.selectAll("*").remove();
 
         const x = d3
             .scaleTime()
-            .domain(d3.extent(combinedDates))
+            .domain(d3.extent(combinedLogDates))
             .range([margin.left, width - margin.right]);
 
         const y = d3
             .scaleLinear()
-            .domain([2, d3.max(combinedGPerL)])
+            .domain([0, d3.max(combinedGPerL)])
             .range([height - margin.bottom, margin.top]);
 
         const radius = d3
@@ -127,8 +130,9 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
             .text("Biomass g/L");
 
         //Initial Datapoints, size, and color
+
         const circlesGroup = svg.selectAll(".data-point")
-            .data(combinedData)
+            .data(combinedLogData)
             .enter()
             .append("g")
             .attr("class", "data-point")
@@ -198,9 +202,15 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
         //Log Regression
         const logRegression = calculateLogarithmicRegression(biomassData);
         console.log(logRegression);
-        const logRegressionLineData = allXValues.map((x) => ({
+        // Generate dense x values from 0.0001 to the first x value
+        const minX = 0.0001;
+        const firstX = allXValues[0];
+        const denseX = d3.range(minX, firstX, 0.01);
+        const extendedXValues = [...denseX, ...allXValues];
+
+        const logRegressionLineData = extendedXValues.map((x) => ({
             x: new Date(startDate.getTime() + (x - 1) * 24 * 60 * 60 * 1000),
-            y: logRegression.a + logRegression.b * Math.log(x),
+            y: logRegression.a + logRegression.b * Math.log(x)
         }));
         const logLine = d3
             .line()
@@ -223,7 +233,7 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
             .attr("y1", 0)
             .attr("x2", 0)
             .attr("y2", d => {
-                const startDate = d3.min(biomassData, d => new Date(d.collection_date));
+                const startDate = d3.min(combinedLogData, d => new Date(d.collection_date));
                 const currentDate = new Date(d.collection_date);
                 const xVal = ((currentDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
                 const logY = logRegression.a + logRegression.b * Math.log(xVal);
@@ -232,6 +242,12 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
             .attr("stroke", "black")
             .attr("stroke-width", 0.5)
             .attr("stroke-dasharray", "2,2");
+
+        const legendSVG = svg.append("g")
+
+        legendSVG
+            .attr("transform", `translate(${width - margin.right - 100}, ${margin.top})`);
+
 
 
     }, [biomassData]);

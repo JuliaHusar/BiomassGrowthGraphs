@@ -3,7 +3,7 @@ import Papa from "papaparse";
 import * as d3 from 'd3';
 import {aggregateDataIntoDayParts, datesWithinRange} from "../HelperFunctions.js";
 import PredictiveScatterplot from "../Components/PredictiveScatterplot.jsx";
-import InputVariableInterface from "../Components/InputVariableInterface.jsx";
+import InputDetailInterface from "../Components/InputDetailInterface.jsx";
 
 const PredictiveAnalysis = () => {
     const [selectedMonth, setSelectedMonth] = useState(null);
@@ -15,13 +15,8 @@ const PredictiveAnalysis = () => {
 
     return(
         <div className='flex flex-row w-full'>
-            <div className='w-'>
-                {selectedView === 'input' ?
-                    <InputVariableInterface/> :
-                    <InputVariableInterface/>
-                }
-                <PredictiveScatterplot selectedMonth={selectedMonth} setSelectedMonth={handleSelectMonth}/>
-            </div>
+            <InputDetailInterface/>
+            <PredictiveScatterplot selectedMonth={selectedMonth} setSelectedMonth={handleSelectMonth}/>
         </div>
     )
 }
