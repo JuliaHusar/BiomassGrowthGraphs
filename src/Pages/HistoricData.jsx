@@ -2,10 +2,10 @@ import * as d3 from 'd3';
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import '../App.css';
-import {convertToDate} from "../HelperFunctions.js";
-import HourOverTime from "../Components/HourOverTime.jsx";
+import {convertToDate} from "../Components/Math/HelperFunctions.js";
+import HourOverTime from "../Components/Graphs/HourOverTime.jsx";
 import axios from "axios";
-import HourOverTimeCo2 from "../Components/HourOverTimeCo2.jsx";
+import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 
 const HistoricData = () => {
     const ref = useRef();
@@ -17,7 +17,7 @@ const HistoricData = () => {
     useEffect(() => {
         const getCSV = async () => {
             try{
-                const response = await fetch ('/April17Cleaned.csv')
+                const response = await fetch ('/April25Cleaned.csv')
                 /*
                 const response = await axios.post('http://localhost:3000/api/getData',
                     {

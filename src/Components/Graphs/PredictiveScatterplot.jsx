@@ -1,14 +1,14 @@
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import * as d3 from "d3";
-import ProgressGauge from "./ProgressGauge.jsx";
+import ProgressGauge from "../ProgressGauge.jsx";
 import {
     getAccurateXValues,
     calculateLinearRegression,
     returnMultivariateRegression,
     getSlopeThreshold, calculateLogisticRegression, calculateLogarithmicRegression
-} from "./MathFunctions.js";
-import predictedValues from "./../../public/PredictedValues.json"
+} from "../Math/MathFunctions.js";
+import predictedValues from "../../../public/PredictedValues.json"
 
 const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
     const ref = useRef();

@@ -1,8 +1,8 @@
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import * as d3 from 'd3';
-import {aggregateDataIntoDayParts, datesWithinRange} from "../HelperFunctions.js";
-import PredictiveScatterplot from "../Components/PredictiveScatterplot.jsx";
+import {aggregateDataIntoDayParts, datesWithinRange} from "../Components/Math/HelperFunctions.js";
+import PredictiveScatterplot from "../Components/Graphs/PredictiveScatterplot.jsx";
 import InputDetailInterface from "../Components/InputDetailInterface.jsx";
 
 const PredictiveAnalysis = () => {

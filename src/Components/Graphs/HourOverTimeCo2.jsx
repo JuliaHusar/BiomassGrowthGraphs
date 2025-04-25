@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import * as d3 from 'd3';
-import {convertToDate, convertToHour} from "../HelperFunctions.js";
+import {convertToDate, convertToHour} from "../Math/HelperFunctions.js";
 
 const HourOverTimeCo2 = () => {
     const ref = useRef();
