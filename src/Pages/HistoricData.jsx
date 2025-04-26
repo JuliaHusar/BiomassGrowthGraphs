@@ -3,8 +3,6 @@ import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import '../App.css';
 import {convertToDate} from "../Components/Math/HelperFunctions.js";
-import HourOverTime from "../Components/Graphs/HourOverTime.jsx";
-import axios from "axios";
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 
 const HistoricData = () => {

@@ -6,7 +6,7 @@ import {
     getAccurateXValues,
     calculateLinearRegression,
     returnMultivariateRegression,
-    getSlopeThreshold, calculateLogisticRegression, calculateLogarithmicRegression
+    getSlopeThreshold, calculateLogarithmicRegression
 } from "../Math/MathFunctions.js";
 import predictedValues from "../../../public/PredictedValues.json"
 
@@ -17,8 +17,6 @@ const PredictiveScatterplot = ({selectedMonth, setSelectedMonth}) => {
     const height = 800;
     const margin = {top: 50, right: 50, bottom: 70, left: 70};
     const months2025 = {"April": [], "March": []};
-    const years = {"2025": months2025};
-    const barHeight = 20;
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
     useEffect(() => {

@@ -8,9 +8,10 @@ const HourOverTimeCo2 = () => {
     const circleLegendRef = useRef();
     const colorLegendRef = useRef();
     const progressBarRef = useRef();
+    const yAxisRef = useRef();
     const [historicData, setHistoricData] = useState([]);
     const [selectedData, setSelectedData] = useState(null);
-    const width = window.innerWidth - 100;
+    const width = window.innerWidth * 2;
     const height = 800;
     const margin = {top: 20, right: 50, bottom: 70, left: 70};
     const [granularity, setGranularity] = useState(10);
@@ -19,7 +20,7 @@ const HourOverTimeCo2 = () => {
     useEffect(() => {
         const getCSV = async () => {
             try{
-                const response = await fetch ('/April17Cleaned.csv')
+                const response = await fetch ('/April26Cleaned.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -56,7 +57,7 @@ const HourOverTimeCo2 = () => {
 
         const x = d3.scaleBand()
             .domain(allDates)
-            .range([margin.left, width - margin.right])
+            .range([0, width - margin.right])
             .padding(0.1);
 
         const y = d3.scaleLinear()
@@ -120,7 +121,9 @@ const HourOverTimeCo2 = () => {
             .attr('transform', `translate(0,${height - margin.bottom})`)
             .call(d3.axisBottom(x).tickFormat(d => d));
 
-        svg.append('g')
+        const yAxis = d3.select(yAxisRef.current);
+        yAxis.selectAll('*').remove();
+        yAxis.append('g')
             .attr('transform', `translate(${margin.left},0)`)
             .call(d3.axisLeft(y)
                 .ticks(19)
@@ -138,7 +141,7 @@ const HourOverTimeCo2 = () => {
             .style('fill', 'black')
             .text('Date');
 
-        svg.append('text')
+        yAxis.append('text')
             .attr('transform', 'rotate(-90)')
             .attr('x', 0 - (height / 2))
             .attr('y', margin.left - 45)
@@ -146,6 +149,13 @@ const HourOverTimeCo2 = () => {
             .style('font-size', '14px')
             .style('fill', 'black')
             .text('Hour of Day');
+        yAxis.append('line')
+            .attr('x1', margin.left)
+            .attr('x2', margin.left)
+            .attr('y1', 0)
+            .attr('y2', height - margin.bottom)
+            .attr('stroke', 'black')
+            .attr('stroke-width', 2);
 
         const color1LegendData = [
             { label: 'Low CO2', color: colorScale1(d3.min(historicData, d => d.Co2_In)) },
@@ -166,7 +176,7 @@ const HourOverTimeCo2 = () => {
         colorLegendSvg.selectAll('*').remove();
 
         const circleLegendSvg = d3.select(circleLegendRef.current)
-            .attr('width', width/5)
+            .attr('width', width/12)
             .attr('height', 80);
         circleLegendSvg.selectAll('*').remove();
 
@@ -248,9 +258,23 @@ const HourOverTimeCo2 = () => {
                 <div className='flex items-center justify-center mt-10'>
                     <svg ref={progressBarRef}></svg>
                 </div>
-                <div className='svg-container'
-                     style={{width: '100%', height: '100%', overflow: 'scroll'}}>
-                    <svg ref={ref}></svg>
+                <div style={{display: 'flex', position: 'relative', height: '800px'}}>
+                    <div style={{
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 2,
+                        background: 'white'
+                    }}>
+                        <svg ref={yAxisRef} width={margin.left} height={height}></svg>
+                    </div>
+                    <div className='svg-container' style={{
+                        width: '100%'
+                    }}>
+                        <svg ref={ref}></svg>
+                    </div>
+                    <div className=''>
+
+                    </div>
                 </div>
                 <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
 
