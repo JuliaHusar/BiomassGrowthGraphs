@@ -1,4 +1,5 @@
 import {useState} from "react";
+import DetailCard from "./Cards/DetailCard.jsx";
 
 const InputDetailInterface = () => {
     const nutrients = ["Nitrogen", "Phosphorus", "Potassium", "Calcium", "Magnesium", "Sulfur"];
@@ -50,8 +51,8 @@ const InputDetailInterface = () => {
     return(
         <div className='w-1/4 border-2 border-black rounded-lg'>
             <div id='infotab' className='flex flex-row flex-grow justify-evenly h-10'>
-                <button className={selectedView === 'input' ?'bg-white w-1/2 h-full rounded-tl-md' : 'bg-gray-200 w-1/2 h-full rounded-tl-md'} onClick={handleSelected}>Input</button>
-                <button className={selectedView === 'details' ?'bg-white w-1/2 h-full rounded-tr-md' : 'bg-gray-200 w-1/2 h-full rounded-tr-md'} onClick={handleSelected}>Details</button>
+                <button className={selectedView === 'input' ?'bg-white font-bold w-1/2 h-full rounded-tl-md' : 'bg-gray-200 w-1/2 h-full rounded-tl-md'} onClick={handleSelected}>Input</button>
+                <button className={selectedView === 'details' ?'bg-white w-1/2 h-full font-bold rounded-tr-md' : 'bg-gray-200 w-1/2 h-full rounded-tr-md'} onClick={handleSelected}>Details</button>
             </div>
             {selectedView === 'input' ?
                 <div className='flex flex-col justify-start items-start p-5'>
@@ -96,7 +97,7 @@ const InputDetailInterface = () => {
                 </div>
                 :
                 <div className='flex flex-col justify-start items-start p-5'>
-
+                    <DetailCard/>
                 </div>
             }
         </div>

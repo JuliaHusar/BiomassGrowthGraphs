@@ -1,8 +1,8 @@
 export function convertToDate(dateString) {
     const dateObject = new Date(dateString);
     return dateObject.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
+        year: '2-digit',
+        month: 'numeric',
         day: 'numeric'
     });
 }
