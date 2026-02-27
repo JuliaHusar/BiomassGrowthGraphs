@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import '../App.css';
-import {convertToDate} from "../Components/Math/HelperFunctions.js";
+import {convertToDate, downloadSVG} from "../Components/Math/HelperFunctions.js";
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 
 const HistoricData = () => {
@@ -272,32 +272,3 @@ const HistoricData = () => {
     );
 }
 export default HistoricData;
-
-export function downloadSVG(ref){
-    console.log("called")
-    const mainSvgEl = ref.current;
-
-    const mainW = Number(mainSvgEl.getAttribute('width')) || mainSvgEl.clientWidth;
-    const mainH = Number(mainSvgEl.getAttribute('height')) || mainSvgEl.clientHeight;
-
-    const combined = d3.create('svg')
-        .attr('xmlns', 'http://www.w3.org/2000/svg')
-        .attr('xmlns:xlink', 'http://www.w3.org/1999/xlink')
-        /*
-        .attr('width', margin.left + mainW)
-        .attr('height', mainH);
-
-         */
-
-    const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-   // wrap.setAttribute('transform', `translate(${margin.left},0)`);
-    Array.from(mainSvgEl.childNodes).forEach(n => wrap.appendChild(n.cloneNode(true)));
-    combined.node().appendChild(wrap);
-
-
-    const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(combined.node());
-    source = '<?xml version="1.0" standalone="no"?>\n' + source;
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
-    document.getElementById('svg-download').setAttribute('href', url);
-}

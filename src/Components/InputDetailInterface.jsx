@@ -1,6 +1,7 @@
 import {useState} from "react";
 import DetailCard from "./Cards/DetailCard.jsx";
 
+
 const InputDetailInterface = () => {
     const nutrients = ["Nitrogen", "Phosphorus", "Potassium", "Calcium", "Magnesium", "Sulfur"];
     const [nutrientFrequency, setNutrientFrequency] = useState(null);
