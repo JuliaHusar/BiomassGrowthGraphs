@@ -101,6 +101,7 @@ const HistoricData = () => {
             });
     }, [historicData]);
     */
+    /*
     useEffect(() => {
         if (historicData.length === 0) return;
 
@@ -194,6 +195,7 @@ const HistoricData = () => {
             }
         });
 
+
         if (selectedData) {
             const circleGroup = svg.append('g')
                 .attr('transform', `translate(${x(selectedData.date) + x.bandwidth() / 2}, ${y(d3.mean(selectedData.values, v => v.Co2_In))})`);
@@ -207,6 +209,46 @@ const HistoricData = () => {
                 .append('path')
                 .attr('fill', (d, i) => d3.schemeCategory10[i % 10]);
         }
+        downloadSVG(ref)
+    }, [historicData, selectedData]);
+
+     */
+    useEffect(() => {
+        if (historicData.length === 0) return;
+
+        const dailyData = d3.group(historicData, d => convertToDate(d.LocalTime));
+        console.log(dailyData)
+        const dailyArray = Array.from(dailyData, ([date, values]) => ({ date, values }));
+
+        const svg = d3.select(ref.current)
+            .attr('width', width)
+            .attr('height', height);
+        console.log(dailyArray)
+
+        const tooltip = d3.select('#tooltip');
+        const dates = dailyArray.map(d => d.date);
+
+        const x = d3.scaleBand()
+            .domain(dates)
+            .range([margin.left, width - margin.right]);
+
+        const y = d3.scaleLinear()
+            .domain(d => d.LocalTime)
+            .range([height - margin.bottom, margin.top]);
+
+        const line = d3.line()
+            .x(d => d.LocalTime)
+            .y(d => d.front_lux_values)
+
+        svg.append('g')
+            .attr('transform', `translate(0,${height - margin.bottom})`)
+            .call(d3.axisBottom(x));
+
+        svg.append('g')
+            .attr('transform', `translate(${margin.left},0)`)
+            .call(d3.axisLeft(y));
+
+        downloadSVG(ref)
     }, [historicData, selectedData]);
 
     const closeModal = () => {
@@ -230,3 +272,32 @@ const HistoricData = () => {
     );
 }
 export default HistoricData;
+
+export function downloadSVG(ref){
+    console.log("called")
+    const mainSvgEl = ref.current;
+
+    const mainW = Number(mainSvgEl.getAttribute('width')) || mainSvgEl.clientWidth;
+    const mainH = Number(mainSvgEl.getAttribute('height')) || mainSvgEl.clientHeight;
+
+    const combined = d3.create('svg')
+        .attr('xmlns', 'http://www.w3.org/2000/svg')
+        .attr('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+        /*
+        .attr('width', margin.left + mainW)
+        .attr('height', mainH);
+
+         */
+
+    const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+   // wrap.setAttribute('transform', `translate(${margin.left},0)`);
+    Array.from(mainSvgEl.childNodes).forEach(n => wrap.appendChild(n.cloneNode(true)));
+    combined.node().appendChild(wrap);
+
+
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(combined.node());
+    source = '<?xml version="1.0" standalone="no"?>\n' + source;
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+    document.getElementById('svg-download').setAttribute('href', url);
+}

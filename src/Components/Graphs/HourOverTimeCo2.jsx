@@ -350,36 +350,7 @@ const HourOverTimeCo2 = () => {
             .attr('width', 200)
             .attr('height', 30)
             .attr('fill', 'steelblue');
-
-
-        // Build a combined SVG (Y axis + main) for download
-        const mainSvgEl = ref.current;
-        const yAxisSvgEl = yAxisRef.current;
-
-        const mainW = Number(mainSvgEl.getAttribute('width')) || mainSvgEl.clientWidth;
-        const mainH = Number(mainSvgEl.getAttribute('height')) || mainSvgEl.clientHeight;
-
-        const combined = d3.create('svg')
-            .attr('xmlns', 'http://www.w3.org/2000/svg')
-            .attr('xmlns:xlink', 'http://www.w3.org/1999/xlink')
-            .attr('width', margin.left + mainW)
-            .attr('height', mainH);
-
-        const yAxisGNode = yAxisSvgEl.querySelector('g');
-        if (yAxisGNode) {
-            combined.append(() => yAxisGNode.cloneNode(true));
-        }
-
-        const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        wrap.setAttribute('transform', `translate(${margin.left},0)`);
-        Array.from(mainSvgEl.childNodes).forEach(n => wrap.appendChild(n.cloneNode(true)));
-        combined.node().appendChild(wrap);
-
-        const serializer = new XMLSerializer();
-        let source = serializer.serializeToString(combined.node());
-        source = '<?xml version="1.0" standalone="no"?>\n' + source;
-        const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
-        document.getElementById('svg-download').setAttribute('href', url);
+        //downloadSVG(ref)
     }, [historicData]);
 
     const closeModal = () => {
