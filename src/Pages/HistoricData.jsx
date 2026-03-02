@@ -218,26 +218,18 @@ const HistoricData = () => {
     useEffect(() => {
         if (historicData.length === 0) return;
 
+        //data cleaning
         const dailyData = d3.group(historicData, d => {
             const date = new Date(d.LocalTime);
             return d3.timeDay(date).toISOString().split('T')[0];
         });
         const dailyArray = Array.from(dailyData, ([date, values]) => ({ date, values }));
-
-        let data = Object.assign(d3.csvParse(rawCSV), {y1: "Time", y2: "Date"})
+        //svg init
         const svg = d3.select(ref.current)
             .attr('width', width)
             .attr('height', height);
 
         //const tooltip = d3.select('#tooltip');
-        const timeArray = (dailyArray.map(d => d.values.map(v => (v.LocalTime))))
-        const groupedDays = d3.groups(timeArray, (d) => (d.values))
-        const lightArray = dailyArray.map(d =>
-            d.values.map(v => ({
-                time: v.LocalTime,
-                light: v.front_lux_values
-            }))
-        );
         const dates = dailyArray.map(d => (d.date));
 
         const x = d3.scaleBand()
@@ -247,6 +239,7 @@ const HistoricData = () => {
             .domain([0, 24])
             .range([margin.top, height - margin.bottom]);
 
+        //create cells for graph
         const cellWidth = x.bandwidth();
         const cells = svg.selectAll('g.cell')
             .data(dailyArray)
@@ -254,19 +247,30 @@ const HistoricData = () => {
             .append('g')
             .attr('class', 'cell')
             .attr('transform', d => `translate(${x(d.date)}, ${margin.top})`);
-
         const smallMargin = { top: 10, right: 10, bottom: 20, left: 30 };
         cells.each(function(d) {
             const cell = d3.select(this);
-
+            //helper function to get maxCo2 at any point
+            const maxCo2 = () => {
+                return Math.max(
+                    d3.max(historicData, d => d.Co2_In),
+                    d3.max(historicData, d => d.Co2_Out)
+                )
+            }
+            //x-axis to display lux values on path
             const luxAxis = d3.scaleLinear()
                 .domain([0, d3.max(historicData, d => d.front_lux_values)])
                 .range([smallMargin.left, cellWidth - smallMargin.right]);
-
+            //x-axis used to display count
+            const co2Axis = d3.scaleLinear()
+                .domain([0, maxCo2()])
+                .range([smallMargin.left, cellWidth - smallMargin.right]);
+            //matches up with outerY scale
             const innerY = d3.scaleLinear()
                 .domain([0, 24])
-                .range([0, height - margin.bottom - margin.top]); //
-
+                .range([0, height - margin.bottom - margin.top]);
+            //lux values that are plotted on the line, rn it's only getting front lux values
+            // but we can change it to measure how much light is passing through bioreactor (the more carbon it sequesters, the less light goes through)
             const line = d3.line()
                 .defined((d, i, data) => {
                     if (i === 0) return true;
@@ -281,7 +285,7 @@ const HistoricData = () => {
                     return innerY(t.getHours() + t.getMinutes() / 60);
                 })
             /*
-            displays y-axis, removed it bcs of clutter but we can always add it back
+            displays y-axis for every individual cell, removed it bcs of clutter but we can always add it back
             cell.append('g')
                 .attr('transform', `translate(${smallMargin.left}, 0)`)
                 .call(d3.axisLeft(innerY)
@@ -290,6 +294,48 @@ const HistoricData = () => {
                 )
 
              */
+            //bins for yscale based on hour of day
+            const binY = d3.scaleLinear()
+                .domain([0, 24])
+                .range([0, height - margin.top - margin.bottom]);
+            //histogram for the co2 values with circles
+            const histogram = d3.histogram()
+                .value(d => {
+                    const t = new Date(d.LocalTime);
+                    return t.getHours() + t.getMinutes() / 60;
+                })
+                .domain([0, 24])
+                .thresholds(d3.range(0, 24, 1));
+            //get bin intervals based on co2 values
+            //we can change this later to account for all co2 values if needed
+            const bins = histogram(d.values.filter(v => v.Co2_In != null));
+            //for every bin, create a dot count
+            bins.forEach(timeBin => {
+                if (timeBin.length === 0) return;
+
+                const meanCo2In = d3.mean(timeBin, v => v.Co2_In);
+                const meanCo2Out = d3.mean(timeBin, v => v.Co2_Out);
+                const dotCountIn = Math.round(meanCo2In / 100);
+                const dotCountOut = Math.round(meanCo2Out / 100);
+                const r = 5;
+                //maps out dots for ever bin within the cell on the y-axis
+                d3.range(dotCountIn).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("fill", "gray") //input is gray
+                        .attr("opacity", 1);
+                });
+                d3.range(dotCountOut).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("fill", "green") //output is green indicating what was reduced
+                        .attr("opacity", 1);
+                });
+            });
 
             cell.append('g')
                 .attr('transform', `translate(0, ${height - margin.top - margin.bottom})`)
@@ -300,13 +346,53 @@ const HistoricData = () => {
                 .attr('dy', '-1.5em')
 
 
-            const n = 15;
-            const sampledData = historicData.filter((_, i) => i % n === 0);
+            const n = 5;
+            const dotsPerCircle = 100;
+            const sampledData = d.values.filter((_, i) => i % n === 0);
+
+            cell.selectAll("circle")
+                .data(bins)
+                .enter()
+
+            cell.append('g')
+                .selectAll("g.bin")
+                .data(bins)
+                .enter()
+                .append("g")
+                .attr("class", "bin")
+/* These are scatterplots of the points that form bands showing the input and output values
+            cell.append('g')
+                .selectAll("circle")
+                .data(d.values)
+                .enter()
+                .append("circle")
+                .attr("cx", v => co2Axis(v.Co2_In))
+                .attr("cy", v => {
+                    const t = new Date(v.LocalTime);
+                    return innerY(t.getHours() + t.getMinutes() / 60);
+                })
+                .attr("r", 2)
+                .attr("fill", "steelblue");
+
+            cell.append('g')
+                .selectAll("circle")
+                .data(d.values)
+                .enter()
+                .append("circle")
+                .attr("cx", v => co2Axis(v.Co2_Out))
+                .attr("cy", v => {
+                    const t = new Date(v.LocalTime);
+                    return innerY(t.getHours() + t.getMinutes() / 60);
+                })
+                .attr("r", 2)
+                .attr("fill", "red");
+
+ */
 
             cell.append('path')
-                .datum(d.values)
+                .datum(sampledData)
                 .attr('fill', 'none')
-                .attr('stroke', '#69b3a2')
+                .attr('stroke', '#e7d530')
                 .attr('stroke-width', 1.5)
                 .attr('d', line);
 
@@ -323,30 +409,6 @@ const HistoricData = () => {
                 .ticks(24)
                 .tickFormat(d => `${String(d).padStart(2, '0')}:00`)
             );
-
-        /*
-        const x = d3.scaleBand()
-            .domain(dates)
-            .range([margin.left, width - margin.right]);
-
-        const y = d3.scaleLinear()
-            .domain([24, 0])
-            .range([height - margin.bottom, margin.top]);
-
-        svg.append('g')
-            .attr('transform', `translate(${margin.left})`)
-            .call(d3.axisLeft(y)
-                .ticks(19)
-                .tickFormat(d => {
-                    return `${String(d).padStart(2, '0')}:00`;
-                })
-            );
-
-        svg.append('g')
-            .attr('transform', `translate(0,${height - margin.bottom})`)
-            .call(d3.axisBottom(x))
-
-         */
 
         downloadSVG(ref)
     }, [historicData, margin.bottom, margin.left, margin.right, margin.top, selectedData, rawCSV]);
