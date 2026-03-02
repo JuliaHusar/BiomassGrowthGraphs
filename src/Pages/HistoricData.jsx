@@ -280,6 +280,8 @@ const HistoricData = () => {
                     const t = new Date(d.LocalTime);
                     return innerY(t.getHours() + t.getMinutes() / 60);
                 })
+            /*
+            displays y-axis, removed it bcs of clutter but we can always add it back
             cell.append('g')
                 .attr('transform', `translate(${smallMargin.left}, 0)`)
                 .call(d3.axisLeft(innerY)
@@ -287,9 +289,15 @@ const HistoricData = () => {
                     .tickFormat(d => `${String(Math.floor(d)).padStart(2, '0')}:00`)
                 )
 
+             */
+
             cell.append('g')
                 .attr('transform', `translate(0, ${height - margin.top - margin.bottom})`)
-                .call(d3.axisBottom(luxAxis).ticks(5))
+                .call(d3.axisBottom(luxAxis).ticks(3).tickSizeInner(-6))
+                .selectAll('text')
+                .attr('text-anchor', 'end')
+                .attr('dx', '1.5em')
+                .attr('dy', '-1.5em')
 
 
             const n = 15;
@@ -307,6 +315,7 @@ const HistoricData = () => {
         svg.append('g')
             .attr('transform', `translate(0, ${height - margin.bottom})`)
             .call(d3.axisBottom(x).ticks(width / 80));
+
 
         svg.append('g')
             .attr('transform', `translate(${margin.left}, 0)`)
