@@ -2,16 +2,17 @@ import * as d3 from 'd3';
 import {useEffect, useRef, useState} from "react";
 import Papa from "papaparse";
 import '../App.css';
-import {convertToDate, downloadSVG} from "../Components/Math/HelperFunctions.js";
+import {convertToDate, datesWithinRange, downloadSVG} from "../Components/Math/HelperFunctions.js";
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 
 const HistoricData = () => {
     const ref = useRef();
     const [historicData, setHistoricData] = useState([]);
+    const [rawCSV, setRawCSV] = useState(null)
     const [selectedData, setSelectedData] = useState(null);
-    const width = 1400;
+    const width = 3000;
     const height = 900;
-    const margin = {top: 20, right: 20, bottom: 20, left: 40};
+    const margin = { top: 20, right: 20, bottom: 50, left: 50 };
     useEffect(() => {
         const getCSV = async () => {
             try{
@@ -30,6 +31,7 @@ const HistoricData = () => {
 
                  */
                 const text = await response.text();
+                setRawCSV(text)
 
                 Papa.parse(text, {
                     complete: (results) => {
@@ -216,40 +218,129 @@ const HistoricData = () => {
     useEffect(() => {
         if (historicData.length === 0) return;
 
-        const dailyData = d3.group(historicData, d => convertToDate(d.LocalTime));
-        console.log(dailyData)
+        const dailyData = d3.group(historicData, d => {
+            const date = new Date(d.LocalTime);
+            return d3.timeDay(date).toISOString().split('T')[0];
+        });
         const dailyArray = Array.from(dailyData, ([date, values]) => ({ date, values }));
 
+        let data = Object.assign(d3.csvParse(rawCSV), {y1: "Time", y2: "Date"})
         const svg = d3.select(ref.current)
             .attr('width', width)
             .attr('height', height);
-        console.log(dailyArray)
 
-        const tooltip = d3.select('#tooltip');
-        const dates = dailyArray.map(d => d.date);
+        //const tooltip = d3.select('#tooltip');
+        const timeArray = (dailyArray.map(d => d.values.map(v => (v.LocalTime))))
+        const groupedDays = d3.groups(timeArray, (d) => (d.values))
+        const lightArray = dailyArray.map(d =>
+            d.values.map(v => ({
+                time: v.LocalTime,
+                light: v.front_lux_values
+            }))
+        );
+        const dates = dailyArray.map(d => (d.date));
 
+        const x = d3.scaleBand()
+            .domain(dates.map(d => (d)))
+            .range([margin.left, width - margin.right]);
+        const y = d3.scaleLinear()
+            .domain([0, 24])
+            .range([margin.top, height - margin.bottom]);
+
+        const cellWidth = x.bandwidth();
+        const cells = svg.selectAll('g.cell')
+            .data(dailyArray)
+            .enter()
+            .append('g')
+            .attr('class', 'cell')
+            .attr('transform', d => `translate(${x(d.date)}, ${margin.top})`);
+
+        const smallMargin = { top: 10, right: 10, bottom: 20, left: 30 };
+        cells.each(function(d) {
+            const cell = d3.select(this);
+
+            const luxAxis = d3.scaleLinear()
+                .domain([0, d3.max(historicData, d => d.front_lux_values)])
+                .range([smallMargin.left, cellWidth - smallMargin.right]);
+
+            const innerY = d3.scaleLinear()
+                .domain([0, 24])
+                .range([0, height - margin.bottom - margin.top]); //
+
+            const line = d3.line()
+                .defined((d, i, data) => {
+                    if (i === 0) return true;
+                    const prev = new Date(data[i - 1].LocalTime);
+                    const curr = new Date(d.LocalTime);
+                    const diffHours = (curr - prev) / 1000 / 60 / 60;
+                    return diffHours < 1;
+                })
+                .x(d => luxAxis(d.front_lux_values))
+                .y(d => {
+                    const t = new Date(d.LocalTime);
+                    return innerY(t.getHours() + t.getMinutes() / 60);
+                })
+            cell.append('g')
+                .attr('transform', `translate(${smallMargin.left}, 0)`)
+                .call(d3.axisLeft(innerY)
+                    .ticks(24)
+                    .tickFormat(d => `${String(Math.floor(d)).padStart(2, '0')}:00`)
+                )
+
+            cell.append('g')
+                .attr('transform', `translate(0, ${height - margin.top - margin.bottom})`)
+                .call(d3.axisBottom(luxAxis).ticks(5))
+
+
+            const n = 15;
+            const sampledData = historicData.filter((_, i) => i % n === 0);
+
+            cell.append('path')
+                .datum(d.values)
+                .attr('fill', 'none')
+                .attr('stroke', '#69b3a2')
+                .attr('stroke-width', 1.5)
+                .attr('d', line);
+
+        })
+
+        svg.append('g')
+            .attr('transform', `translate(0, ${height - margin.bottom})`)
+            .call(d3.axisBottom(x).ticks(width / 80));
+
+        svg.append('g')
+            .attr('transform', `translate(${margin.left}, 0)`)
+            .call(d3.axisLeft(y)
+                .ticks(24)
+                .tickFormat(d => `${String(d).padStart(2, '0')}:00`)
+            );
+
+        /*
         const x = d3.scaleBand()
             .domain(dates)
             .range([margin.left, width - margin.right]);
 
         const y = d3.scaleLinear()
-            .domain(d => d.LocalTime)
+            .domain([24, 0])
             .range([height - margin.bottom, margin.top]);
 
-        const line = d3.line()
-            .x(d => d.LocalTime)
-            .y(d => d.front_lux_values)
+        svg.append('g')
+            .attr('transform', `translate(${margin.left})`)
+            .call(d3.axisLeft(y)
+                .ticks(19)
+                .tickFormat(d => {
+                    return `${String(d).padStart(2, '0')}:00`;
+                })
+            );
 
         svg.append('g')
             .attr('transform', `translate(0,${height - margin.bottom})`)
-            .call(d3.axisBottom(x));
+            .call(d3.axisBottom(x))
 
-        svg.append('g')
-            .attr('transform', `translate(${margin.left},0)`)
-            .call(d3.axisLeft(y));
+         */
 
         downloadSVG(ref)
-    }, [historicData, selectedData]);
+    }, [historicData, margin.bottom, margin.left, margin.right, margin.top, selectedData, rawCSV]);
 
     const closeModal = () => {
         setSelectedData(null);
