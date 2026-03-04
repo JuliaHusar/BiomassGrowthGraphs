@@ -2,7 +2,7 @@ import {useEffect, useRef} from "react";
 import * as d3 from "d3";
 import {downloadSVG} from "../Math/HelperFunctions.js";
 
-const UnitVis = ({historicData, width, height, margin}) => {
+const ScatterBands = ({historicData, width, height, margin}) => {
     const ref = useRef();
 
     useEffect(() => {
@@ -85,99 +85,41 @@ const UnitVis = ({historicData, width, height, margin}) => {
 
              */
             //bins for yscale based on hour of day
-            const binY = d3.scaleLinear()
-                .domain([0, 24])
-                .range([0, height - margin.top - margin.bottom]);
-            //histogram for the co2 values with circles
-            const histogram = d3.histogram()
-                .value(d => {
-                    const t = new Date(d.LocalTime);
-                    return t.getHours() + t.getMinutes() / 60;
-                })
-                .domain([0, 24])
-                .thresholds(d3.range(0, 24, 1));
             //get bin intervals based on co2 values
             //we can change this later to account for all co2 values if needed
-            const bins = histogram(d.values.filter(v => v.Co2_In != null));
-            //for every bin, create a dot count
-            bins.forEach(timeBin => {
-                if (timeBin.length === 0) return;
-
-                const meanCo2In = d3.mean(timeBin, v => v.Co2_In);
-                const meanCo2Out = d3.mean(timeBin, v => v.Co2_Out);
-                const dotCountIn = Math.round(meanCo2In / 40);
-                const dotCountOut = Math.round(meanCo2Out / 40);
-                const r = 5;
-                //maps out dots for ever bin within the cell on the y-axis
-                d3.range(dotCountIn).forEach(i => {
-                    cell.append("circle")
-                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
-                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
-                        .attr("r", r)
-                        .attr("fill", "gray") //input is gray
-                        .attr("opacity", 1);
-                });
-                d3.range(dotCountOut).forEach(i => {
-                    cell.append("circle")
-                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
-                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
-                        .attr("r", r)
-                        .attr("fill", "green") //output is green indicating what was reduced
-                        .attr("opacity", 1);
-                });
-            });
-
-            cell.append('g')
-                .attr('transform', `translate(0, ${height - margin.top - margin.bottom})`)
-                .call(d3.axisBottom(luxAxis).ticks(3).tickSizeInner(-6))
-                .selectAll('text')
-                .attr('text-anchor', 'end')
-                .attr('dx', '1.5em')
-                .attr('dy', '-1.5em')
-
 
             const n = 5;
             const dotsPerCircle = 100;
             const sampledData = d.values.filter((_, i) => i % n === 0);
 
-            cell.selectAll("circle")
-                .data(bins)
+
+            // These are scatterplots of the points that form bands showing the input and output values
+            cell.append('g')
+                .selectAll("circle")
+                .data(d.values)
                 .enter()
+                .append("circle")
+                .attr("cx", v => co2Axis(v.Co2_In))
+                .attr("cy", v => {
+                    const t = new Date(v.LocalTime);
+                    return innerY(t.getHours() + t.getMinutes() / 60);
+                })
+                .attr("r", 2)
+                .attr("fill", "steelblue");
 
             cell.append('g')
-                .selectAll("g.bin")
-                .data(bins)
+                .selectAll("circle")
+                .data(d.values)
                 .enter()
-                .append("g")
-                .attr("class", "bin")
-            /* These are scatterplots of the points that form bands showing the input and output values
-                        cell.append('g')
-                            .selectAll("circle")
-                            .data(d.values)
-                            .enter()
-                            .append("circle")
-                            .attr("cx", v => co2Axis(v.Co2_In))
-                            .attr("cy", v => {
-                                const t = new Date(v.LocalTime);
-                                return innerY(t.getHours() + t.getMinutes() / 60);
-                            })
-                            .attr("r", 2)
-                            .attr("fill", "steelblue");
+                .append("circle")
+                .attr("cx", v => co2Axis(v.Co2_Out))
+                .attr("cy", v => {
+                    const t = new Date(v.LocalTime);
+                    return innerY(t.getHours() + t.getMinutes() / 60);
+                })
+                .attr("r", 2)
+                .attr("fill", "red");
 
-                        cell.append('g')
-                            .selectAll("circle")
-                            .data(d.values)
-                            .enter()
-                            .append("circle")
-                            .attr("cx", v => co2Axis(v.Co2_Out))
-                            .attr("cy", v => {
-                                const t = new Date(v.LocalTime);
-                                return innerY(t.getHours() + t.getMinutes() / 60);
-                            })
-                            .attr("r", 2)
-                            .attr("fill", "red");
-
-             */
 
             cell.append('path')
                 .datum(sampledData)
@@ -209,4 +151,4 @@ const UnitVis = ({historicData, width, height, margin}) => {
     )
 }
 
-export default UnitVis
+export default ScatterBands

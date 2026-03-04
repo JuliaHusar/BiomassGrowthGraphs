@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import '../App.css';
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 import UnitVis from "../Components/Graphs/UnitVis.jsx";
+import ScatterBands from "../Components/Graphs/ScatterBands.jsx";
 
 const HistoricData = () => {
     const [historicData, setHistoricData] = useState([]);
@@ -217,7 +218,7 @@ const HistoricData = () => {
     };
 
     return (
-        <div className='border-2 border-gray-400 rounded-2xl h-full w-full flex flex-col relative'>
+        <div className='border-2 border-black rounded-2xl h-full w-full flex flex-col relative'>
             <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
             {selectedData && (
                 <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center'>
@@ -228,6 +229,7 @@ const HistoricData = () => {
                 </div>
             )}
             <UnitVis historicData={historicData} width={width} height={height} margin={margin}/>
+            <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
             <HourOverTimeCo2/>
         </div>
     );
