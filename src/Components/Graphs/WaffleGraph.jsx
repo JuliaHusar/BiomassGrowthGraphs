@@ -2,7 +2,7 @@ import {useEffect, useRef} from "react";
 import * as d3 from "d3";
 import {downloadSVG} from "../Math/HelperFunctions.js";
 
-const UnitVis = ({historicData, width, height, margin}) => {
+const WaffleGraph = ({historicData, width, height, margin}) => {
     const ref = useRef();
 
     useEffect(() => {
@@ -102,26 +102,40 @@ const UnitVis = ({historicData, width, height, margin}) => {
             //for every bin, create a dot count
             bins.forEach(timeBin => {
                 if (timeBin.length === 0) return;
-
                 const meanCo2In = d3.mean(timeBin, v => v.Co2_In);
                 const meanCo2Out = d3.mean(timeBin, v => v.Co2_Out);
-                const dotCountIn = Math.round(meanCo2In / 40); //40ppm represents one dot bcs trends are easier to see this way
-                const dotCountOut = Math.round(meanCo2Out / 40);
-                const r = 5;
-                //maps out dots for ever bin within the cell on the y-axis
-                d3.range(dotCountIn).forEach(i => {
+                const splitCo2 = (inOrOut) => {
+                    let hundredBin = Math.floor(inOrOut / 100) * 100
+                    let tenRemainder = Math.round(inOrOut % 100)/10
+                    let tens = (Math.floor(tenRemainder)) * 10
+                    let ones = (tenRemainder * 10) % 10
+                    return {hundreds: hundredBin/100, tens: tens/10, ones: ones}
+                }
+                const dotCountIn = splitCo2(meanCo2In)
+                const dotCountOut = splitCo2(meanCo2Out)
+                console.log(dotCountIn)
+                const r = 10;
+                //maps out dots for every bin within the cell on the y-axis
+                const roundedIn  = Math.ceil(dotCountIn.hundreds / 2) * 2;
+                const roundedOut = Math.ceil(dotCountOut.hundreds / 2) * 2;
+                const radiusScale = d3.scaleSqrt()
+                    .domain([0, maxCo2()])
+                    .range([1, 10]);
+                const rIn  = radiusScale(meanCo2In);
+                const rOut = radiusScale(meanCo2Out);
+                d3.range(roundedIn).forEach(i => {
                     cell.append("circle")
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
-                        .attr("r", r)
+                        .attr("r", rIn)
                         .attr("fill", "gray") //input is gray
                         .attr("opacity", 1);
                 });
-                d3.range(dotCountOut).forEach(i => {
+                d3.range(roundedOut).forEach(i => {
                     cell.append("circle")
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
-                        .attr("r", r)
+                        .attr("r", rOut)
                         .attr("fill", "green") //output is green indicating what was reduced
                         .attr("opacity", 1);
                 });
@@ -150,34 +164,6 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 .enter()
                 .append("g")
                 .attr("class", "bin")
-            /* These are scatterplots of the points that form bands showing the input and output values
-                        cell.append('g')
-                            .selectAll("circle")
-                            .data(d.values)
-                            .enter()
-                            .append("circle")
-                            .attr("cx", v => co2Axis(v.Co2_In))
-                            .attr("cy", v => {
-                                const t = new Date(v.LocalTime);
-                                return innerY(t.getHours() + t.getMinutes() / 60);
-                            })
-                            .attr("r", 2)
-                            .attr("fill", "steelblue");
-
-                        cell.append('g')
-                            .selectAll("circle")
-                            .data(d.values)
-                            .enter()
-                            .append("circle")
-                            .attr("cx", v => co2Axis(v.Co2_Out))
-                            .attr("cy", v => {
-                                const t = new Date(v.LocalTime);
-                                return innerY(t.getHours() + t.getMinutes() / 60);
-                            })
-                            .attr("r", 2)
-                            .attr("fill", "red");
-
-             */
 
             cell.append('path')
                 .datum(sampledData)
@@ -185,13 +171,11 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 .attr('stroke', '#e7d530')
                 .attr('stroke-width', 1.5)
                 .attr('d', line);
-
         })
 
         svg.append('g')
             .attr('transform', `translate(0, ${height - margin.bottom})`)
             .call(d3.axisBottom(x).ticks(width / 80));
-
 
         svg.append('g')
             .attr('transform', `translate(${margin.left}, 0)`)
@@ -209,4 +193,4 @@ const UnitVis = ({historicData, width, height, margin}) => {
     )
 }
 
-export default UnitVis
+export default WaffleGraph

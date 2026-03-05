@@ -4,6 +4,7 @@ import '../App.css';
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 import UnitVis from "../Components/Graphs/UnitVis.jsx";
 import ScatterBands from "../Components/Graphs/ScatterBands.jsx";
+import WaffleGraph from "../Components/Graphs/WaffleGraph.jsx";
 
 const HistoricData = () => {
     const [historicData, setHistoricData] = useState([]);
@@ -228,6 +229,7 @@ const HistoricData = () => {
                     </div>
                 </div>
             )}
+            <WaffleGraph historicData={historicData} width={width} height={height} margin={margin}/>
             <UnitVis historicData={historicData} width={width} height={height} margin={margin}/>
             <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
             <HourOverTimeCo2/>
