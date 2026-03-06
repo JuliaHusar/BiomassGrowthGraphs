@@ -104,6 +104,53 @@ const WaffleGraph = ({historicData, width, height, margin}) => {
                 if (timeBin.length === 0) return;
                 const meanCo2In = d3.mean(timeBin, v => v.Co2_In);
                 const meanCo2Out = d3.mean(timeBin, v => v.Co2_Out);
+                const dotCountIn = Math.round(meanCo2In / 40); //40ppm represents one dot bcs trends are easier to see this way
+                const dotCountOut = Math.round(meanCo2Out / 40);
+                const r = 5;
+                //maps out dots for ever bin within the cell on the y-axis
+                let difference = dotCountIn - dotCountOut
+
+                /*
+                d3.range(dotCountIn).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("fill", i >= dotCountOut ? "green" : "#E9ECEF") //
+                        .attr("opacity", 1);
+                });
+
+                d3.range(dotCountOut).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1 + 1) / 2))
+                        .attr("r", r)
+                        .attr("fill", "#E9ECEF") //difference is green
+                        .attr("opacity", 1);
+                });
+
+                 */
+                d3.range(dotCountIn).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("fill", "#E9ECEF") //
+                        .attr("opacity", 1);
+                });
+
+                d3.range(difference).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("stroke", "green")
+                        .attr("stroke-width", 2)
+                        .attr("fill", "#E9ECEF") //sequestration is gray with green outline
+                        .attr("opacity", 1);
+                });
+
+                /*
                 const splitCo2 = (inOrOut) => {
                     let hundredBin = Math.floor(inOrOut / 100) * 100
                     let tenRemainder = Math.round(inOrOut % 100)/10
@@ -128,7 +175,7 @@ const WaffleGraph = ({historicData, width, height, margin}) => {
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
                         .attr("r", rIn)
-                        .attr("fill", "gray") //input is gray
+                        .attr("fill", "#E9ECEF") //input is gray
                         .attr("opacity", 1);
                 });
                 d3.range(roundedOut).forEach(i => {
@@ -139,6 +186,8 @@ const WaffleGraph = ({historicData, width, height, margin}) => {
                         .attr("fill", "green") //output is green indicating what was reduced
                         .attr("opacity", 1);
                 });
+
+                 */
             });
 
             cell.append('g')

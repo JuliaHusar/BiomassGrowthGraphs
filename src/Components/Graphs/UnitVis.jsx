@@ -109,22 +109,49 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 const dotCountOut = Math.round(meanCo2Out / 40);
                 const r = 5;
                 //maps out dots for ever bin within the cell on the y-axis
+                let difference = dotCountIn - dotCountOut
+
+                /*
                 d3.range(dotCountIn).forEach(i => {
                     cell.append("circle")
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
                         .attr("r", r)
-                        .attr("fill", "gray") //input is gray
+                        .attr("fill", i >= dotCountOut ? "green" : "#E9ECEF") //
                         .attr("opacity", 1);
                 });
+
                 d3.range(dotCountOut).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1 + 1) / 2))
+                        .attr("r", r)
+                        .attr("fill", "#E9ECEF") //difference is green
+                        .attr("opacity", 1);
+                });
+
+                 */
+                d3.range(dotCountIn).forEach(i => {
                     cell.append("circle")
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
                         .attr("r", r)
-                        .attr("fill", "green") //output is green indicating what was reduced
+                        .attr("fill", "#E9ECEF") //
                         .attr("opacity", 1);
                 });
+
+                d3.range(difference).forEach(i => {
+                    cell.append("circle")
+                        .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
+                        .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
+                        .attr("r", r)
+                        .attr("stroke", "green")
+                        .attr("stroke-width", 4)
+                        .attr("fill", "#E9ECEF") //sequestration is gray with green outline
+                        .attr("opacity", 1);
+                });
+
+
             });
 
             cell.append('g')
