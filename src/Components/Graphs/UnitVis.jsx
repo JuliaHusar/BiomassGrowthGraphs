@@ -73,7 +73,7 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 .y(d => {
                     const t = new Date(d.LocalTime);
                     return innerY(t.getHours() + t.getMinutes() / 60);
-                })
+                });
             /*
             displays y-axis for every individual cell, removed it bcs of clutter but we can always add it back
             cell.append('g')
@@ -107,7 +107,7 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 const meanCo2Out = d3.mean(timeBin, v => v.Co2_Out);
                 const dotCountIn = Math.round(meanCo2In / 40); //40ppm represents one dot bcs trends are easier to see this way
                 const dotCountOut = Math.round(meanCo2Out / 40);
-                const r = 5;
+                const r = 9; // increased radius
                 //maps out dots for ever bin within the cell on the y-axis
                 let difference = dotCountIn - dotCountOut
 
@@ -144,8 +144,8 @@ const UnitVis = ({historicData, width, height, margin}) => {
                     cell.append("circle")
                         .attr("cx", smallMargin.left + r + i * (r * 2 + 2))
                         .attr("cy", binY((timeBin.x0 + timeBin.x1) / 2))
-                        .attr("r", r)
-                        .attr("stroke", "green")
+                        .attr("r", r - 2) // so that the overall radius including the stroke = r
+                        .attr("stroke", "#5bb335") // trying a shade of green that looks more like the microalgae
                         .attr("stroke-width", 4)
                         .attr("fill", "#E9ECEF") //sequestration is gray with green outline
                         .attr("opacity", 1);
@@ -211,7 +211,8 @@ const UnitVis = ({historicData, width, height, margin}) => {
                 .attr('fill', 'none')
                 .attr('stroke', '#e7d530')
                 .attr('stroke-width', 1.5)
-                .attr('d', line);
+                .attr('d', line)
+                .attr('opacity', 0.5); // reduce opacity
 
         })
 

@@ -9,8 +9,8 @@ import WaffleGraph from "../Components/Graphs/WaffleGraph.jsx";
 const HistoricData = () => {
     const [historicData, setHistoricData] = useState([]);
     const [selectedData, setSelectedData] = useState(null);
-    const width = 3000;
-    const height = 900;
+    const width = 5000; // increased width to accommodate larger bubbles
+    const height = 700; // reduced height so bubbles are more closely packed & trends are easier to see
     const margin = { top: 20, right: 20, bottom: 50, left: 50 };
     useEffect(() => {
         const getCSV = async () => {
