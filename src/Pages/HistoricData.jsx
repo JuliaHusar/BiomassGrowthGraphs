@@ -5,6 +5,8 @@ import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
 import UnitVis from "../Components/Graphs/UnitVis.jsx";
 import ScatterBands from "../Components/Graphs/ScatterBands.jsx";
 import WaffleGraph from "../Components/Graphs/WaffleGraph.jsx";
+import LineGraph from "../Components/Graphs/LineGraph.jsx";
+import BubbleGraphs from "../Components/Graphs/BubbleGraphs.jsx";
 
 const HistoricData = () => {
     const [historicData, setHistoricData] = useState([]);
@@ -15,7 +17,7 @@ const HistoricData = () => {
     useEffect(() => {
         const getCSV = async () => {
             try{
-                const response = await fetch ('/April25Cleaned.csv')
+                const response = await fetch ('/2026-data.csv')
                 /*
                 const response = await axios.post('http://localhost:3000/api/getData',
                     {
@@ -229,10 +231,14 @@ const HistoricData = () => {
                     </div>
                 </div>
             )}
+
+            {/*
+            <LineGraph historicData={historicData} width={width} height={height} margin={margin}/>
             <WaffleGraph historicData={historicData} width={width} height={height} margin={margin}/>
             <UnitVis historicData={historicData} width={width} height={height} margin={margin}/>
             <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
-            <HourOverTimeCo2/>
+            */}
+            <BubbleGraphs/>
         </div>
     );
 }
