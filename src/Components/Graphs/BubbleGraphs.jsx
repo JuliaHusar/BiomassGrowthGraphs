@@ -5,8 +5,9 @@ import {convertToDate} from "../Math/HelperFunctions.js";
 
 const HourOverTimeCo2 = () => {
     const ref = useRef();
+    const treeRef = useRef();
     const width = 2000;
-    const height = 1000;
+    const height = 500;
     const marginTop = 20;
     const marginRight = 30;
     const marginBottom = 30;
@@ -50,7 +51,7 @@ const HourOverTimeCo2 = () => {
                     },
                     header:true,
                     dynamicTyping: true,
-                });
+                })
             } catch (error){
                 console.log(error)
             }
@@ -59,111 +60,199 @@ const HourOverTimeCo2 = () => {
     }, []);
 
     useEffect(() => {
-        if (data.timeData.length === 0) return;
 
-        const svg = d3.select(ref.current);
-        svg.selectAll("*").remove();
-        svg
-            .attr('width', width)
-            .attr('height', height);
+        const draw = () => {
+            if (data.timeData.length === 0) return;
 
-        const maxGap = 15 * 60 * 1000;
+            const svg = d3.select(ref.current);
+            svg.selectAll("*").remove();
+            svg
+                .attr('width', width)
+                .attr('height', height);
 
-        const hasNext = new Set(
-            data.timeData
-                .slice(0, -1)
-                .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
-                .map(d => d.timestamp)
-        );
-        hasNext.add(data.timeData.at(-1).timestamp);
+            const maxGap = 15 * 60 * 1000;
 
-        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [marginLeft, width - marginRight]);
-        const y = d3.scaleLinear([0, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [height - marginTop, marginBottom])
-
-
-        const line = d3.line()
-            .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-            .x(d => x(d.timestamp))
-            .y(d => y(d.scd30_co2_ppm_input));
-
-        const outputLine = d3.line()
-            .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-            .x(d => x(d.timestamp))
-            .y(d => y(d.scd30_co2_ppm_output));
-
-        const thresholdLine = d3.line()
-            .x(d => x(d.timestamp))
-            .y(d => y(400))
-
-        //x axis
-        svg.append("g")
-            .attr("transform", `translate(0,${height - marginBottom})`)
-            .call(
-                d3.axisBottom(x)
-                    .ticks(width / 80)
+            const hasNext = new Set(
+                data.timeData
+                    .slice(0, -1)
+                    .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
+                    .map(d => d.timestamp)
             );
+            hasNext.add(data.timeData.at(-1).timestamp);
 
-        //tree graph for a day
-        svg.append("g")
-            .attr("transform", `translate(${width - marginRight}, 0)`)
-            .call(d3.axisLeft(y).ticks(height / 20))
-            .call(g => g.select(".domain").remove())
-            .call(g => g.selectAll(".tick").clone()
-                .attr("x2", width - marginLeft - marginRight)
-                .attr("stroke-opacity", 0.1))
+            const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [marginLeft, width - marginRight]);
+            const y = d3.scaleLinear([0, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [height - marginTop, marginBottom])
+            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+            const line = d3.line()
+                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+                .x(d => x(d.timestamp))
+                .y(d => y(d.scd30_co2_ppm_input));
 
-        svg.append("g")
-            .attr("transform", `translate(${marginLeft},0)`)
-            .call(d3.axisLeft(y).ticks(height / 20))
-            .call(g => g.select(".domain").remove())
-            .call(g => g.selectAll(".tick").clone()
-                .attr("x2", width - marginLeft - marginRight)
-                .attr("stroke-opacity", 0.1))
+            const outputLine = d3.line()
+                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+                .x(d => x(d.timestamp))
+                .y(d => y(d.scd30_co2_ppm_output));
 
-        svg.append("path")
-            .attr("fill", "none")
-            .attr("clip-path", "url(#clip)")
-            .attr("stroke", "red")
-            .attr("stroke-width", 1.5)
-            .attr("d", line(data.timeData));
+            const thresholdLine = d3.line()
+                .x(d => x(d.timestamp))
+                .y(d => y(400))
 
-        svg.append("path")
-            .attr("fill", "none")
-            .attr("clip-path", "url(#clip)")
-            .attr("stroke", "steelBlue")
-            .attr("stroke-width", 1.5)
-            .attr("d", outputLine(data.timeData));
+            //x axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height - marginBottom})`)
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(width / 80)
+                );
 
-        svg.append("path")
-            .attr("fill", "none")
-            .attr("clip-path", "url(#clip)")
-            .attr("stroke", "steelBlue")
-            .attr("stroke-width", 1.5)
-            .attr("d", thresholdLine(data.timeData));
+            //tree graph for a day
+            svg.append("g")
+                .attr("transform", `translate(${width - marginRight}, 0)`)
+                .call(d3.axisLeft(y).ticks(height / 20))
+                .call(g => g.select(".domain").remove())
+                .call(g => g.selectAll(".tick").clone()
+                    .attr("x2", width - marginLeft - marginRight)
+                    .attr("stroke-opacity", 0.1))
 
-        svg.append("g")
-            .selectAll("circle")
-            .data(data.aggregatedData)
-            .join("circle")
-            .attr("cx", d => x(d.timestamp))
-            .attr("cy", d => y(d.output))
-            .attr("r", d => d.delta)
-            .attr("fill", "green")
-            .attr("opacity", 0.5)
+            svg.append("g")
+                .attr("transform", `translate(${marginLeft},0)`)
+                .call(d3.axisLeft(y).ticks(height / 20))
+                .call(g => g.select(".domain").remove())
+                .call(g => g.selectAll(".tick").clone()
+                    .attr("x2", width - marginLeft - marginRight)
+                    .attr("stroke-opacity", 0.1))
+
+            svg.append("path")
+                .attr("fill", "none")
+                .attr("clip-path", "url(#clip)")
+                .attr("stroke", "red")
+                .attr("stroke-width", 1.5)
+                .attr("d", line(data.timeData));
+
+            svg.append("path")
+                .attr("fill", "none")
+                .attr("clip-path", "url(#clip)")
+                .attr("stroke", "steelBlue")
+                .attr("stroke-width", 1.5)
+                .attr("d", outputLine(data.timeData));
+
+            svg.append("path")
+                .attr("fill", "none")
+                .attr("clip-path", "url(#clip)")
+                .attr("stroke", "steelBlue")
+                .attr("stroke-width", 1.5)
+                .attr("d", thresholdLine(data.timeData));
+
+            svg.append("g")
+                .selectAll("circle")
+                .data(data.aggregatedData)
+                .join("circle")
+                .attr("cx", d => x(d.timestamp))
+                .attr("cy", d => y(d.output))
+                .attr("r", d => r(d.delta))
+                .attr("fill", "green")
+                .attr("opacity", 0.5)
 
 
-        svg.append("defs").append("clipPath")
-            .attr("id", "clip")
-            .append("rect")
-            .attr("x", marginLeft)
-            .attr("y", marginTop)
-            .attr("width", width - marginLeft - marginRight)
-            .attr("height", height - marginTop - marginBottom);
+            svg.append("defs").append("clipPath")
+                .attr("id", "clip")
+                .append("rect")
+                .attr("x", marginLeft)
+                .attr("y", marginTop)
+                .attr("width", width - marginLeft - marginRight)
+                .attr("height", height - marginTop - marginBottom);
+
+        }
+        draw();
+
+    }, [data]);
+
+    useEffect(() => {
+        const draw = async () => {
+            const treeHeight = 500;
+            const treeWidth = 500;
+            const centerY = treeHeight/2;
+            const centerX = treeWidth/2;
+            const top = centerY + 50;
+            const bottom = centerY + 240;
+            const left = centerX - 50;
+            const right = centerY + 50;
+
+            const treeLineData = [
+                { x: left + 20, y: top },
+                { x: right - 20, y: top },
+                { x: right, y: bottom },
+                { x: left, y: bottom },
+                { x: left + 20, y: top },
+            ]
+            const svg = d3.select(treeRef.current);
+            svg.selectAll("*").remove();
+            svg
+                .attr('width', treeHeight)
+                .attr('height', treeWidth);
+            svg.append("g")
+
+            const treeGroup = svg.append("g")
+                .attr("width", 100)
+                .attr("height", 100)
+
+            var treeLine = d3.line()
+                .x((p) => p.x)
+                .y((p) => p.y)
+                .curve(d3.curveBumpX)
+                .curve(d3.curveBumpY)
+
+            svg.append("path")
+                .attr("d", treeLine(treeLineData))
+                .attr("fill", "none")
+                .attr("stroke", "brown");
+
+
+            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
+            const pack = d3.pack()
+                .size([treeWidth - marginLeft * 6, height - marginTop * 6])
+                .radius(d => r(d.value))
+                .padding(4);
+            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
+
+
+            const root = pack(d3.hierarchy({children: data.aggregatedData})
+                .sum(d => d.delta))
+
+            svg.append("rect")
+                .attr("x", left)
+                .attr("y", centerY-20)
+                .attr("width", 100)
+                .attr("height", 100)
+                .attr("fill", "white");
+
+            const node = svg.append("g")
+                .attr("transform", "translate(120, 40)")
+                .selectAll()
+                .data(root.leaves())
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+
+            const color = d3.scaleSequential()
+                .domain([0, d3.max(filteredDays, d => d.delta)])
+                .interpolator(d3.interpolateGreens);
+            node.append("circle")
+                .attr("fill-opacity", 0.7)
+                .attr("fill", d => color(d.value))
+                .attr("r", d => d.r);
+
+        }
+        draw()
     }, [data]);
 
     return (
-        <div className='overflow-scroll'>
-            <svg ref={ref}></svg>
+        <div className='flex flex-row w-full h-full'>
+            <div className=' overflow-x-scroll'>
+                <svg ref={ref}></svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+                <svg ref={treeRef} width="100%" height="100%"></svg>
+            </div>
         </div>
     );
 

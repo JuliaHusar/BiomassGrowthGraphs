@@ -8,7 +8,7 @@ const WaffleGraph = ({historicData, width, height, margin}) => {
     useEffect(() => {
         if (historicData.length === 0) return;
 
-        //data cleaning
+        //data cl   eaning
         const dailyData = d3.group(historicData, d => {
             const date = new Date(d.LocalTime);
             return d3.timeDay(date).toISOString().split('T')[0];
