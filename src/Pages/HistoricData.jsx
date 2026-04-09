@@ -239,7 +239,6 @@ const HistoricData = () => {
             <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
             */}
             <BubbleGraphs/>
-            <HourOverTimeCo2/>
         </div>
     );
 }
