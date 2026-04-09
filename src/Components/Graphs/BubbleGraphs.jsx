@@ -1,7 +1,7 @@
-import {useEffect, useRef, useState} from "react";
+import { useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
 import * as d3 from 'd3';
-import {convertToDate} from "../Math/HelperFunctions.js";
+import { convertToDate } from "../Math/HelperFunctions.js";
 
 const HourOverTimeCo2 = () => {
     const ref = useRef();
@@ -18,8 +18,8 @@ const HourOverTimeCo2 = () => {
 
     useEffect(() => {
         const getCSV = async () => {
-            try{
-                const response = await fetch ('/2026-data.csv')
+            try {
+                const response = await fetch('/2026-data.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -35,7 +35,7 @@ const HourOverTimeCo2 = () => {
                             const hourKey = new Date(val.timestamp);
                             hourKey.setMinutes(0, 0, 0, 0);
                             const k = hourKey.toISOString();
-                            if (!accumulator[k]) accumulator[k] = {timestamp: hourKey, sum: 0, count: 0, output: []};
+                            if (!accumulator[k]) accumulator[k] = { timestamp: hourKey, sum: 0, count: 0, output: [] };
                             accumulator[k].sum += val.scd30_co2_ppm_input - val.scd30_co2_ppm_output;
                             accumulator[k].output.push(parseInt(val.scd30_co2_ppm_input))
                             accumulator[k].count++;
@@ -49,10 +49,10 @@ const HourOverTimeCo2 = () => {
                         }));
                         setData({ timeData, aggregatedData });
                     },
-                    header:true,
+                    header: true,
                     dynamicTyping: true,
                 })
-            } catch (error){
+            } catch (error) {
                 console.log(error)
             }
         }
@@ -81,7 +81,8 @@ const HourOverTimeCo2 = () => {
             hasNext.add(data.timeData.at(-1).timestamp);
 
             const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [marginLeft, width - marginRight]);
-            const y = d3.scaleLinear([0, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [height - marginTop, marginBottom])
+            // start y axis from 300 to make vis larger and patterns clearer
+            const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [height - marginTop, marginBottom])
             const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
             const line = d3.line()
                 .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
@@ -97,18 +98,45 @@ const HourOverTimeCo2 = () => {
                 .x(d => x(d.timestamp))
                 .y(d => y(400))
 
-            //x axis
+            // for formatting time format on x-axis
+            const customTimeFormat = (date) => {
+                if (d3.utcDay(date) < date) {
+                    return d3.utcFormat("%-I %p")(date); // hour + am/pm
+                } else { // at date boundaries
+                    return d3.utcFormat("%b %-d")(date); // month + day
+                }
+            };
+
+            // x axis
             svg.append("g")
                 .attr("transform", `translate(0,${height - marginBottom})`)
                 .call(
                     d3.axisBottom(x)
-                        .ticks(width / 80)
+                        .ticks(d3.utcHour.every(3)) // ticks every 3 hours
+                        // .ticks(width / 80)
+                        .tickFormat(customTimeFormat)
                 );
 
-            //tree graph for a day
+            // vertical line at date boundaries
+            svg.append("g")
+                .attr("transform", `translate(0,${height - marginBottom})`)
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(d3.utcDay) // ticks at day boundaries
+                        .tickSize(-(height - marginTop - marginBottom)) // extend tick upward
+                        .tickFormat("") // hide tick labels
+                )
+                .call(g => g.select(".domain").remove()) // remove axis line
+                .call(g => g.selectAll(".tick line")
+                    .attr("stroke", "black")
+                    .attr("stroke-opacity", 0.06)
+                    .attr("stroke-width", 2.5)
+                );
+
+            // tree graph for a day
             svg.append("g")
                 .attr("transform", `translate(${width - marginRight}, 0)`)
-                .call(d3.axisLeft(y).ticks(height / 20))
+                .call(d3.axisLeft(y).ticks(height / 50)) // reduce number of ticks
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick").clone()
                     .attr("x2", width - marginLeft - marginRight)
@@ -116,7 +144,7 @@ const HourOverTimeCo2 = () => {
 
             svg.append("g")
                 .attr("transform", `translate(${marginLeft},0)`)
-                .call(d3.axisLeft(y).ticks(height / 20))
+                .call(d3.axisLeft(y).ticks(height / 50)) // reduce number of ticks
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick").clone()
                     .attr("x2", width - marginLeft - marginRight)
@@ -125,22 +153,24 @@ const HourOverTimeCo2 = () => {
             svg.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
-                .attr("stroke", "red")
-                .attr("stroke-width", 1.5)
+                .attr("stroke", "#62a247")
+                .attr("stroke-width", 1)
                 .attr("d", line(data.timeData));
 
             svg.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
-                .attr("stroke", "steelBlue")
-                .attr("stroke-width", 1.5)
+                .attr("stroke", "#9FBC93")
+                .attr("stroke-width", 1)
                 .attr("d", outputLine(data.timeData));
 
             svg.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
-                .attr("stroke", "steelBlue")
-                .attr("stroke-width", 1.5)
+                .attr("stroke", "black")
+                .style("stroke-dasharray", "2, 2")
+                .attr("stroke-width", 0.6)
+                .attr("opacity", 0.7)
                 .attr("d", thresholdLine(data.timeData));
 
             svg.append("g")
@@ -150,8 +180,8 @@ const HourOverTimeCo2 = () => {
                 .attr("cx", d => x(d.timestamp))
                 .attr("cy", d => y(d.output))
                 .attr("r", d => r(d.delta))
-                .attr("fill", "green")
-                .attr("opacity", 0.5)
+                .attr("fill", "#5bb335")
+                .attr("opacity", 0.7)
 
 
             svg.append("defs").append("clipPath")
@@ -171,8 +201,8 @@ const HourOverTimeCo2 = () => {
         const draw = async () => {
             const treeHeight = 500;
             const treeWidth = 500;
-            const centerY = treeHeight/2;
-            const centerX = treeWidth/2;
+            const centerY = treeHeight / 2;
+            const centerX = treeWidth / 2;
             const top = centerY + 50;
             const bottom = centerY + 240;
             const left = centerX - 50;
@@ -216,12 +246,12 @@ const HourOverTimeCo2 = () => {
             const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
 
 
-            const root = pack(d3.hierarchy({children: data.aggregatedData})
+            const root = pack(d3.hierarchy({ children: data.aggregatedData })
                 .sum(d => d.delta))
 
             svg.append("rect")
                 .attr("x", left)
-                .attr("y", centerY-20)
+                .attr("y", centerY - 20)
                 .attr("width", 100)
                 .attr("height", 100)
                 .attr("fill", "white");
