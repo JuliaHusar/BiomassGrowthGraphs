@@ -4,8 +4,9 @@ import * as d3 from 'd3';
 import { convertToDate } from "../Math/HelperFunctions.js";
 
 const HourOverTimeCo2 = () => {
-    const ref = useRef();
+    const horizontalGraphRef = useRef();
     const treeRef = useRef();
+    const cyclicTreeRef = useRef();
     const width = 2000;
     const height = 500;
     const marginTop = 20;
@@ -19,7 +20,7 @@ const HourOverTimeCo2 = () => {
     useEffect(() => {
         const getCSV = async () => {
             try {
-                const response = await fetch('/2026-data.csv')
+                const response = await fetch ('/04-09-26-air.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -64,7 +65,7 @@ const HourOverTimeCo2 = () => {
         const draw = () => {
             if (data.timeData.length === 0) return;
 
-            const svg = d3.select(ref.current);
+            const svg = d3.select(horizontalGraphRef.current);
             svg.selectAll("*").remove();
             svg
                 .attr('width', width)
@@ -198,7 +199,7 @@ const HourOverTimeCo2 = () => {
     }, [data]);
 
     useEffect(() => {
-        const draw = async () => {
+        const drawStandardTree = async () => {
             const treeHeight = 500;
             const treeWidth = 500;
             const centerY = treeHeight / 2;
@@ -272,16 +273,93 @@ const HourOverTimeCo2 = () => {
                 .attr("r", d => d.r);
 
         }
-        draw()
+        drawStandardTree()
+        const drawCyclicTree = async () => {
+            const treeHeight = 500;
+            const treeWidth = 500;
+            const centerY = treeHeight/2;
+            const centerX = treeWidth/2;
+            const top = centerY + 50;
+            const bottom = centerY + 240;
+            const left = centerX - 50;
+            const right = centerY + 50;
+
+            const treeLineData = [
+                { x: left + 20, y: top },
+                { x: right - 20, y: top },
+                { x: right, y: bottom },
+                { x: left, y: bottom },
+                { x: left + 20, y: top },
+            ]
+            const svg = d3.select(cyclicTreeRef.current);
+            svg.selectAll("*").remove();
+            svg
+                .attr('width', treeHeight)
+                .attr('height', treeWidth);
+            svg.append("g")
+
+            const treeGroup = svg.append("g")
+                .attr("width", 100)
+                .attr("height", 100)
+
+            var treeLine = d3.line()
+                .x((p) => p.x)
+                .y((p) => p.y)
+                .curve(d3.curveBumpX)
+                .curve(d3.curveBumpY)
+
+            svg.append("path")
+                .attr("d", treeLine(treeLineData))
+                .attr("fill", "none")
+                .attr("stroke", "brown");
+
+
+            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
+            const pack = d3.pack()
+                .size([treeWidth - marginLeft * 6, height - marginTop * 6])
+                .radius(d => r(d.value))
+                .padding(4);
+            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
+
+
+            const root = pack(d3.hierarchy({children: data.aggregatedData})
+                .sum(d => d.delta))
+
+            svg.append("rect")
+                .attr("x", left)
+                .attr("y", centerY-20)
+                .attr("width", 100)
+                .attr("height", 100)
+                .attr("fill", "white");
+
+            const node = svg.append("g")
+                .attr("transform", "translate(120, 40)")
+                .selectAll()
+                .data(root.leaves())
+                .join("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+
+            const color = d3.scaleSequential()
+                .domain([0, d3.max(filteredDays, d => d.delta)])
+                .interpolator(d3.interpolateGreens);
+            node.append("circle")
+                .attr("fill-opacity", 0.7)
+                .attr("fill", d => color(d.value))
+                .attr("r", d => d.r);
+
+        }
+        drawCyclicTree()
     }, [data]);
 
     return (
         <div className='flex flex-row w-full h-full'>
             <div className=' overflow-x-scroll'>
-                <svg ref={ref}></svg>
+                <svg ref={horizontalGraphRef}></svg>
             </div>
             <div className='flex-1 min-w-0'>
+                <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
                 <svg ref={treeRef} width="100%" height="100%"></svg>
+
             </div>
         </div>
     );
