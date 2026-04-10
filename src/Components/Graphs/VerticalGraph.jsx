@@ -11,7 +11,7 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
             svg.selectAll("*").remove();
             svg
                 .attr('width', constraints.width)
-                .attr('height', constraints.height);
+                .attr('height', constraints.height + 2000);
 
             const maxGap = 15 * 60 * 1000;
 
@@ -49,8 +49,13 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
                     return d3.utcFormat("%b %-d")(date); // month + day
                 }
             };
+            let dayBuckets = d3.group(
+                data.timeData,
+                d => new Date(d.timestamp).toISOString().slice(0, 10)
+            );
 
             // x axis
+            /*
             svg.append("g")
                 .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
                 .call(
@@ -76,64 +81,84 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
                     .attr("stroke-width", 2.5)
                 );
 
-            // tree graph for a day
-            svg.append("g")
-                .attr("transform", `translate(${constraints.width - constraints.marginRight}, 0)`)
-                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
-                .call(g => g.select(".domain").remove())
-                .call(g => g.selectAll(".tick").clone()
-                    .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
-                    .attr("stroke-opacity", 0.1))
+             */
 
-            svg.append("g")
-                .attr("transform", `translate(${constraints.marginLeft},0)`)
-                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
-                .call(g => g.select(".domain").remove())
-                .call(g => g.selectAll(".tick").clone()
-                    .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
-                    .attr("stroke-opacity", 0.1))
-
-            svg.append("path")
-                .attr("fill", "none")
-                .attr("clip-path", "url(#clip)")
-                .attr("stroke", "#62a247")
-                .attr("stroke-width", 1)
-                .attr("d", line(data.timeData));
-
-            svg.append("path")
-                .attr("fill", "none")
-                .attr("clip-path", "url(#clip)")
-                .attr("stroke", "#9FBC93")
-                .attr("stroke-width", 1)
-                .attr("d", outputLine(data.timeData));
-
-            svg.append("path")
-                .attr("fill", "none")
-                .attr("clip-path", "url(#clip)")
-                .attr("stroke", "black")
-                .style("stroke-dasharray", "2, 2")
-                .attr("stroke-width", 0.6)
-                .attr("opacity", 0.7)
-                .attr("d", thresholdLine(data.timeData));
-
-            svg.append("g")
-                .selectAll("circle")
-                .data(data.aggregatedData)
-                .join("circle")
-                .attr("cx", d => x(d.timestamp))
-                .attr("cy", d => y(d.output))
-                .attr("r", d => r(d.delta))
-                .attr("fill", "#5bb335")
-                .attr("opacity", 0.7)
+            const row = d3.scaleBand()
+                .domain([...dayBuckets.keys()])
+                .range([constraints.marginLeft, constraints.width - constraints.marginRight])
+                .padding(0.05);
 
 
-            svg.append("defs").append("clipPath")
-                .attr("id", "clip")
+            const cellContainer = svg.append('g').attr('class', 'cells');
+
+            const cells = cellContainer.selectAll('g.day-cell')
+                .data([...dayBuckets.entries()])
+                .join(enter => enter.append('g').attr('class', 'day-cell'))
+                .attr('transform', ([day]) => `translate(0, ${row(day)})`);
+
+            svg.append("defs").selectAll("clipPath.day-clip")
+                .data([...dayBuckets.entries()])
+                .join(enter => enter.append("clipPath").attr("class", "day-clip"))
+                .attr("id", ([day]) => `clip-${day}`)
                 .append("rect")
-                .attr("x", constraints.marginLeft)
+                .attr("x", 0)
                 .attr("y", constraints.marginTop)
-                .attr("width", constraints.width - constraints.marginLeft - constraints.marginRight)
+                .attr("width", 2000)
                 .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom);
+
+            cells.each(function([day, records]) {
+                const cell = d3.select(this);
+                const bandwidth = 2000;
+
+                const dayStart = new Date(day + "T00:00:00Z");
+                const dayEnd   = new Date(day + "T24:00:00Z");
+
+                const xLocal = d3.scaleUtc()
+                    .domain([dayStart, dayEnd])
+                    .range([0, bandwidth]);
+
+                const localHasNext = new Set(
+                    records.slice(0, -1)
+                        .filter((d, i) => records[i + 1].timestamp - d.timestamp <= maxGap)
+                        .map(d => d.timestamp)
+                );
+                localHasNext.add(records.at(-1).timestamp);
+
+                const localLine = d3.line()
+                    .defined(d => !isNaN(d.timestamp) && localHasNext.has(d.timestamp))
+                    .x(d => xLocal(d.timestamp))
+                    .y(d => y(d.scd30_co2_ppm_input));
+
+                const localOutputLine = d3.line()
+                    .defined(d => !isNaN(d.timestamp) && localHasNext.has(d.timestamp))
+                    .x(d => xLocal(d.timestamp))
+                    .y(d => y(d.scd30_co2_ppm_output));
+
+                cell.append("path")
+                    .attr("fill", "none")
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("stroke", "#62a247")
+                    .attr("stroke-width", 1)
+                    .attr("d", localLine(records));
+
+                cell.append("path")
+                    .attr("fill", "none")
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("stroke", "#9FBC93")
+                    .attr("stroke-width", 1)
+                    .attr("d", localOutputLine(records));
+
+                // Threshold line
+                cell.append("line")
+                    .attr("x1", 0)
+                    .attr("x2", bandwidth)
+                    .attr("y1", y(400))
+                    .attr("y2", y(400))
+                    .attr("stroke", "black")
+                    .style("stroke-dasharray", "2,2")
+                    .attr("stroke-width", 0.6)
+                    .attr("opacity", 0.7);
+            });
 
         }
         draw();

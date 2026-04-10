@@ -9,6 +9,7 @@ const BubbleGraphs = () => {
     const treeRef = useRef();
     const verticalRef = useRef();
     const cyclicTreeRef = useRef();
+    //TODO: filter out any data where output is higher than input
 
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
@@ -20,7 +21,7 @@ const BubbleGraphs = () => {
     useEffect(() => {
         const getCSV = async () => {
             try {
-                const response = await fetch ('/04-09-26-air.csv')
+                const response = await fetch ('/04-10-2026.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -196,7 +197,7 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [data]);
+    }, [data, verticalView]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
@@ -283,6 +284,12 @@ const BubbleGraphs = () => {
             const bottom = centerY + 240;
             const left = centerX - 50;
             const right = centerY + 50;
+            const clockRadius = 120;
+            const secondTickStart = clockRadius - 20;
+            const secondTickLength = -10;
+            const labelRadius = clockRadius + 16;
+            const secondLabelYOffset = 5;
+            const radians = Math.PI /180
 
             const treeLineData = [
                 { x: left + 20, y: top },
@@ -298,10 +305,6 @@ const BubbleGraphs = () => {
                 .attr('height', treeWidth);
             svg.append("g")
 
-            const treeGroup = svg.append("g")
-                .attr("width", 100)
-                .attr("height", 100)
-
             var treeLine = d3.line()
                 .x((p) => p.x)
                 .y((p) => p.y)
@@ -313,17 +316,10 @@ const BubbleGraphs = () => {
                 .attr("fill", "none")
                 .attr("stroke", "brown");
 
-
             const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
-            const pack = d3.pack()
-                .size([treeWidth - constraints.marginLeft * 6, constraints.height - constraints.marginTop * 6])
-                .radius(d => r(d.value))
-                .padding(4);
-            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
+            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getDate()) === new Date("April 08, 2026").getDate())
+            console.log(filteredDays)
 
-
-            const root = pack(d3.hierarchy({children: data.aggregatedData})
-                .sum(d => d.delta))
 
             svg.append("rect")
                 .attr("x", left)
@@ -332,28 +328,77 @@ const BubbleGraphs = () => {
                 .attr("height", 100)
                 .attr("fill", "white");
 
-            const node = svg.append("g")
-                .attr("transform", "translate(120, 40)")
-                .selectAll()
-                .data(root.leaves())
-                .join("g")
-                .attr("transform", d => `translate(${d.x},${d.y})`)
+            svg.append("g")
+                .selectAll("path")
+                .data(filteredDays)
+                .enter()
+                .append("path")
+                .attr("fill", "#69b3a2")
+                .attr("d", d3.arc()
+                    .innerRadius(clockRadius))
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${centerX}, ${centerY-20})`);
+
+            const twentyfourHours = d3
+                .scaleLinear()
+                .range([0, 360])
+                .domain([0, 24]);
 
             const color = d3.scaleSequential()
                 .domain([0, d3.max(filteredDays, d => d.delta)])
                 .interpolator(d3.interpolateGreens);
-            node.append("circle")
-                .attr("fill-opacity", 0.7)
-                .attr("fill", d => color(d.value))
-                .attr("r", d => d.r);
+
+            g.selectAll(".hour-data")
+                .data(filteredDays)
+                .enter()
+                .append("circle")
+                .attr("cx", d => clockRadius * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
+                .attr("cy", d => -clockRadius * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+                .attr("r", d => r(d.delta))
+                .attr("fill", d => color(d.delta))
+                .attr("opacity", 0.7)
+
+
+
+
+            g.selectAll(".hour-label")
+                .data(filteredDays)
+                .enter()
+                .append("text")
+                .attr("text-anchor", "middle")
+                .attr("x", d => 140 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
+                .attr("y", d => -140 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+                .text(d => new Date(d.timestamp).getHours() + ":00")
+
+            /*
+            g.selectAll(".hour-tick")
+                .data(d3.range(0, 24))
+                .enter()
+                .append("line")
+                .attr("x1", 0)
+                .attr("x2", 0)
+                .attr("y1", secondTickStart)
+                .attr("y2", secondTickStart + secondTickLength)
+                .attr("stroke", "black")
+                .attr("transform", d => `rotate(${twentyfourHours(d)})`);
+
+             */
+
 
         }
         drawCyclicTree()
     }, [data]);
 
+
     return (
         <div className='flex flex-row w-full h-full'>
             <div className=' overflow-x-scroll'>
+                <div>
+                    <button id='horizontal' onClick={() => setVerticalView(false)}>Horizontal</button>
+                    <button id='vertical' onClick={() => setVerticalView(true)}>Vertical</button>
+
+                </div>
                 {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data} constraints={constraints}/> : <svg ref={horizontalGraphRef}></svg>}
             </div>
             <div className='flex-1 min-w-0'>
