@@ -83,6 +83,8 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
 
              */
 
+            // what if we had like a sort of look up container where people could choose a date that they wanted to compare??? if we're really looking at user needs here
+
             const row = d3.scaleBand()
                 .domain([...dayBuckets.keys()])
                 .range([constraints.marginLeft, constraints.width - constraints.marginRight])

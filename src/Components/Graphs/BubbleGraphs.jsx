@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import Papa from "papaparse";
 import * as d3 from 'd3';
 import { convertToDate } from "../Math/HelperFunctions.js";
@@ -10,13 +10,21 @@ const BubbleGraphs = () => {
     const verticalRef = useRef();
     const cyclicTreeRef = useRef();
     //TODO: filter out any data where output is higher than input
+    //TODO: add maintenance for any data that is null :)
 
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
+    const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
     const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
     const [data, setData] = useState({ timeData: [], aggregatedData: [] });
-
-    const [detailDate, setDetailDate] = useState('');
+    const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
+    const customTimeFormat = (date) => {
+        if (d3.utcDay(date) < date) {
+            return d3.utcFormat("%-I %p")(date); // hour + am/pm
+        } else { // at date boundaries
+            return d3.utcFormat("%b %-d")(date); // month + day
+        }
+    };
 
     useEffect(() => {
         const getCSV = async () => {
@@ -26,7 +34,7 @@ const BubbleGraphs = () => {
 
                 Papa.parse(text, {
                     complete: (results) => {
-                        const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+                        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
                         const timeData = results.data
                             .map(d => ({ ...d, timestamp: new Date(d.timestamp) }))
                             .filter(d => d.timestamp >= cutoff)
@@ -34,6 +42,7 @@ const BubbleGraphs = () => {
                             .filter(d => d.scd30_co2_ppm_output != 0)
                         const preparedData = timeData.filter((val) => new Date(val.timestamp).getHours() != 16 && new Date(val.timestamp).getDate() != 3).reduce((accumulator, val) => {
                             //using hour key here, we don't want the first hour bcs offset can give us problems
+                            //TODO: fix bug that could exclude certain hours that don't have a hh:mm for 00
                             const hourKey = new Date(val.timestamp);
                             hourKey.setMinutes(0, 0, 0, 0);
                             const k = hourKey.toISOString();
@@ -61,53 +70,52 @@ const BubbleGraphs = () => {
         getCSV();
     }, []);
 
+    const scales = useMemo(() => {
+        if (data.timeData.length === 0) return;
+
+        const maxGap = 15 * 60 * 1000;
+
+        const hasNext = new Set(
+            data.timeData
+                .slice(0, -1)
+                .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
+                .map(d => d.timestamp)
+        );
+        hasNext.add(data.timeData.at(-1).timestamp);
+
+        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
+        // start y-axis from 300 to make vis larger and patterns clearer
+        const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
+        const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+        const line = d3.line()
+            .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+            .x(d => x(d.timestamp))
+            .y(d => y(d.scd30_co2_ppm_input))
+
+
+        const outputLine = d3.line()
+            .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+            .x(d => x(d.timestamp))
+            .y(d => y(d.scd30_co2_ppm_output))
+
+        const thresholdLine = d3.line()
+            .x(d => x(d.timestamp))
+            .y(d => y(1000))
+
+        // for formatting time format on x-axis
+        return { x, y, r, line, outputLine, thresholdLine };
+        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData])
+
     useEffect(() => {
 
         const draw = () => {
-            if (data.timeData.length === 0) return;
-
+            if (!scales) return;
             const svg = d3.select(horizontalGraphRef.current);
+            const { x, y, r, line, outputLine, thresholdLine } = scales;
             svg.selectAll("*").remove();
             svg
                 .attr('width', constraints.width)
                 .attr('height', constraints.height);
-
-            const maxGap = 15 * 60 * 1000;
-
-            const hasNext = new Set(
-                data.timeData
-                    .slice(0, -1)
-                    .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
-                    .map(d => d.timestamp)
-            );
-            hasNext.add(data.timeData.at(-1).timestamp);
-
-            const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
-            // start y-axis from 300 to make vis larger and patterns clearer
-            const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
-            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
-            const line = d3.line()
-                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-                .x(d => x(d.timestamp))
-                .y(d => y(d.scd30_co2_ppm_input));
-
-            const outputLine = d3.line()
-                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-                .x(d => x(d.timestamp))
-                .y(d => y(d.scd30_co2_ppm_output));
-
-            const thresholdLine = d3.line()
-                .x(d => x(d.timestamp))
-                .y(d => y(400))
-
-            // for formatting time format on x-axis
-            const customTimeFormat = (date) => {
-                if (d3.utcDay(date) < date) {
-                    return d3.utcFormat("%-I %p")(date); // hour + am/pm
-                } else { // at date boundaries
-                    return d3.utcFormat("%b %-d")(date); // month + day
-                }
-            };
 
             // x axis
             svg.append("g")
@@ -144,7 +152,9 @@ const BubbleGraphs = () => {
                     .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                     .attr("stroke-opacity", 0.1))
 
+            //y axis
             svg.append("g")
+                .attr('class', 'y-axis')
                 .attr("transform", `translate(${constraints.marginLeft},0)`)
                 .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
                 .call(g => g.select(".domain").remove())
@@ -157,14 +167,16 @@ const BubbleGraphs = () => {
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#62a247")
                 .attr("stroke-width", 1)
-                .attr("d", line(data.timeData));
+                .attr("d", line(data.timeData))
+                .attr("class", "inputData")
 
             svg.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#9FBC93")
                 .attr("stroke-width", 1)
-                .attr("d", outputLine(data.timeData));
+                .attr("d", outputLine(data.timeData))
+                .attr("class", "outputData")
 
             svg.append("path")
                 .attr("fill", "none")
@@ -197,7 +209,7 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [data, verticalView]);
+    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data, scales, verticalView]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
@@ -238,7 +250,6 @@ const BubbleGraphs = () => {
                 .attr("d", treeLine(treeLineData))
                 .attr("fill", "none")
                 .attr("stroke", "brown");
-
 
             const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
             const pack = d3.pack()
@@ -360,8 +371,6 @@ const BubbleGraphs = () => {
                 .attr("opacity", 0.7)
 
 
-
-
             g.selectAll(".hour-label")
                 .data(filteredDays)
                 .enter()
@@ -385,10 +394,23 @@ const BubbleGraphs = () => {
 
              */
 
-
         }
         drawCyclicTree()
     }, [data]);
+
+    const changeGranularity = (val) => {
+        //we're starting on 7 days so the granularity change should start from that state
+        setGranularity(val)
+        if (val === 7) {
+            console.log("test")
+            // select existing vis reference so we don't create new ones
+            let svg = d3.select(horizontalGraphRef.current)
+            svg.selectAll(".y-axis")
+
+        }
+
+    }
+
 
 
     return (
@@ -397,7 +419,10 @@ const BubbleGraphs = () => {
                 <div>
                     <button id='horizontal' onClick={() => setVerticalView(false)}>Horizontal</button>
                     <button id='vertical' onClick={() => setVerticalView(true)}>Vertical</button>
-
+                </div>
+                <div className='space-x-2'>
+                    <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
+                    <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Cycle</button>
                 </div>
                 {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data} constraints={constraints}/> : <svg ref={horizontalGraphRef}></svg>}
             </div>
