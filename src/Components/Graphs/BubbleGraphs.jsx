@@ -104,12 +104,13 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData])
+        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData, verticalView])
 
     useEffect(() => {
 
         const draw = () => {
             if (!scales) return;
+            if (!horizontalGraphRef.current) return;
             const svg = d3.select(horizontalGraphRef.current);
             const { x, y, r, line, outputLine, thresholdLine } = scales;
             svg.selectAll("*").remove();
@@ -143,24 +144,16 @@ const BubbleGraphs = () => {
                     .attr("stroke-width", 2.5)
                 );
 
-            // tree graph for a day
-            svg.append("g")
-                .attr("transform", `translate(${constraints.width - constraints.marginRight}, 0)`)
-                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
-                .call(g => g.select(".domain").remove())
-                .call(g => g.selectAll(".tick").clone()
-                    .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
-                    .attr("stroke-opacity", 0.1))
-
             //y axis
             svg.append("g")
                 .attr('class', 'y-axis')
                 .attr("transform", `translate(${constraints.marginLeft},0)`)
-                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick").clone()
                     .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                     .attr("stroke-opacity", 0.1))
+                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
+
 
             svg.append("path")
                 .attr("fill", "none")
@@ -209,7 +202,7 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data, scales, verticalView]);
+    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, scales, data, granularity]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
@@ -396,16 +389,23 @@ const BubbleGraphs = () => {
 
         }
         drawCyclicTree()
-    }, [data]);
+    }, [constraints.height, constraints.marginLeft, constraints.marginTop, data]);
 
     const changeGranularity = (val) => {
         //we're starting on 7 days so the granularity change should start from that state
         setGranularity(val)
         if (val === 7) {
-            console.log("test")
+           // const { x, y, r, line, outputLine, thresholdLine } = scales;
             // select existing vis reference so we don't create new ones
+            const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
             let svg = d3.select(horizontalGraphRef.current)
             svg.selectAll(".y-axis")
+                .transition()
+                .call(d3.axisLeft(y).ticks(constraints.height / 20))
+
+
+            // take existing reference and squash it
+            // create four separate cells that are mapped
 
         }
 
