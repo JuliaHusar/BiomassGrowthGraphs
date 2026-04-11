@@ -15,7 +15,8 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+    const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+    const cycleConstraints = {width: 2000, height: 200, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
     const [data, setData] = useState({ timeData: [], aggregatedData: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const customTimeFormat = (date) => {
@@ -83,9 +84,9 @@ const BubbleGraphs = () => {
         );
         hasNext.add(data.timeData.at(-1).timestamp);
 
-        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
+        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
         // start y-axis from 300 to make vis larger and patterns clearer
-        const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
+        const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
         const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
         const line = d3.line()
             .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
@@ -104,23 +105,26 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData])
+    }, [weeklyConstraints.height, weeklyConstraints.marginBottom, weeklyConstraints.marginLeft,
+        weeklyConstraints.marginRight, weeklyConstraints.marginTop, weeklyConstraints.width,
+        data.aggregatedData, data.timeData]);
 
     useEffect(() => {
+        if (!scales) return;
+        if (!horizontalGraphRef.current) return;
 
         const draw = () => {
-            if (!scales) return;
-            if (!horizontalGraphRef.current) return;
-            const svg = d3.select(horizontalGraphRef.current);
             const { x, y, r, line, outputLine, thresholdLine } = scales;
+            const svg = d3.select(horizontalGraphRef.current);
             svg.selectAll("*").remove();
             svg
-                .attr('width', constraints.width)
-                .attr('height', constraints.height);
+                .attr('width', weeklyConstraints.width)
+                .attr('height', weeklyConstraints.height);
 
             // x axis
             svg.append("g")
-                .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
+                .attr("class", "x-axis")
+                .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
                 .call(
                     d3.axisBottom(x)
                         .ticks(d3.utcHour.every(3)) // ticks every 3 hours
@@ -130,11 +134,11 @@ const BubbleGraphs = () => {
 
             // vertical line at date boundaries
             svg.append("g")
-                .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
+                .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
                 .call(
                     d3.axisBottom(x)
                         .ticks(d3.utcDay) // ticks at day boundaries
-                        .tickSize(-(constraints.height - constraints.marginTop - constraints.marginBottom)) // extend tick upward
+                        .tickSize(-(weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)) // extend tick upward
                         .tickFormat("") // hide tick labels
                 )
                 .call(g => g.select(".domain").remove()) // remove axis line
@@ -147,12 +151,12 @@ const BubbleGraphs = () => {
             //y axis
             svg.append("g")
                 .attr('class', 'y-axis')
-                .attr("transform", `translate(${constraints.marginLeft},0)`)
+                .attr("transform", `translate(${weeklyConstraints.marginLeft},0)`)
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick").clone()
-                    .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
+                    .attr("x2", weeklyConstraints.width - weeklyConstraints.marginLeft - weeklyConstraints.marginRight)
                     .attr("stroke-opacity", 0.1))
-                .call(d3.axisLeft(y).ticks(constraints.height / 50)) // reduce number of ticks
+                .call(d3.axisLeft(y).ticks(weeklyConstraints.height / 50)) // reduce number of ticks
 
 
             svg.append("path")
@@ -194,15 +198,46 @@ const BubbleGraphs = () => {
             svg.append("defs").append("clipPath")
                 .attr("id", "clip")
                 .append("rect")
-                .attr("x", constraints.marginLeft)
-                .attr("y", constraints.marginTop)
-                .attr("width", constraints.width - constraints.marginLeft - constraints.marginRight)
-                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom);
+                .attr("x", weeklyConstraints.marginLeft)
+                .attr("y", weeklyConstraints.marginTop)
+                .attr("width", weeklyConstraints.width - weeklyConstraints.marginLeft - weeklyConstraints.marginRight)
+                .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom);
+
+            if (granularity === 24) {
+                // const { x, y, r, line, outputLine, thresholdLine } = scales;
+                // select existing vis reference so we don't create new ones
+                const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+                let svg = d3.select(horizontalGraphRef.current)
+                svg.selectAll(".y-axis")
+                    .transition()
+                    .call(d3.axisLeft(y).ticks(cycleConstraints.height / 20))
+
+
+                svg.transition()
+                    .attr("height", cycleConstraints.height)
+                    .attr("transform", `translate(0,${cycleConstraints.height} - ${cycleConstraints.marginBottom})`)
+
+                svg.selectAll(".x-axis")
+                    .transition()
+                    .attr("transform", `translate(0,${cycleConstraints.height - cycleConstraints.marginBottom})`)
+
+
+                // take existing reference and squash it
+                // create four separate cells that are mapped
+
+            } else {
+                const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+                let svg = d3.select(horizontalGraphRef.current)
+                svg.selectAll(".y-axis")
+                    .transition()
+                    .call(d3.axisLeft(y).ticks(weeklyConstraints.height / 50))
+
+            }
 
         }
         draw();
 
-    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, scales, data, granularity, verticalView]);
+    }, [data, scales, granularity, verticalView, cycleConstraints.height, cycleConstraints.marginBottom, weeklyConstraints.width, weeklyConstraints.height, weeklyConstraints.marginBottom, weeklyConstraints.marginTop, weeklyConstraints.marginLeft, weeklyConstraints.marginRight]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
@@ -246,7 +281,7 @@ const BubbleGraphs = () => {
 
             const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
             const pack = d3.pack()
-                .size([treeWidth - constraints.marginLeft * 6, constraints.height - constraints.marginTop * 6])
+                .size([treeWidth - weeklyConstraints.marginLeft * 6, weeklyConstraints.height - weeklyConstraints.marginTop * 6])
                 .radius(d => r(d.value))
                 .padding(4);
             const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
@@ -389,26 +424,11 @@ const BubbleGraphs = () => {
 
         }
         drawCyclicTree()
-    }, [constraints.height, constraints.marginLeft, constraints.marginTop, data]);
+    }, [weeklyConstraints.height, weeklyConstraints.marginLeft, weeklyConstraints.marginTop, data]);
 
     const changeGranularity = (val) => {
         //we're starting on 7 days so the granularity change should start from that state
         setGranularity(val)
-        if (val === 7) {
-           // const { x, y, r, line, outputLine, thresholdLine } = scales;
-            // select existing vis reference so we don't create new ones
-            const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
-            let svg = d3.select(horizontalGraphRef.current)
-            svg.selectAll(".y-axis")
-                .transition()
-                .call(d3.axisLeft(y).ticks(constraints.height / 20))
-
-
-            // take existing reference and squash it
-            // create four separate cells that are mapped
-
-        }
-
     }
 
 
@@ -424,7 +444,7 @@ const BubbleGraphs = () => {
                     <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
                     <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Cycle</button>
                 </div>
-                {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data} constraints={constraints}/> : <svg ref={horizontalGraphRef}></svg>}
+                {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data} constraints={weeklyConstraints}/> : <svg ref={horizontalGraphRef}></svg>}
             </div>
             <div className='flex-1 min-w-0'>
                 <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
