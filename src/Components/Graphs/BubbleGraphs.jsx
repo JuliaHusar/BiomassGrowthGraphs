@@ -104,7 +104,7 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData, verticalView])
+        }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, data.aggregatedData, data.timeData])
 
     useEffect(() => {
 
@@ -202,7 +202,7 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, scales, data, granularity]);
+    }, [constraints.height, constraints.marginBottom, constraints.marginLeft, constraints.marginRight, constraints.marginTop, constraints.width, scales, data, granularity, verticalView]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
