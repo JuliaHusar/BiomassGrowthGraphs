@@ -14,7 +14,7 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const [data, setData] = useState({ timeData: [], aggregatedData: [], weeklyData: [], aggregatedWeeklyData: [] });
+    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 15 * 60 * 1000;
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
@@ -37,7 +37,8 @@ const BubbleGraphs = () => {
 
                 Papa.parse(text, {
                     complete: (results) => {
-                        //This data is dependent on whatever the cutoff is, meaning that at the moment it will be one cycle
+                        //This size of timeData var is dependent on whatever the cutoff is
+                        // meaning that at the moment it will be one cycle (24 days)
                         const timeData = results.data
                             .map(d => ({ ...d, timestamp: new Date(d.timestamp) }))
                             .filter(d => d.timestamp >= cutoff)
@@ -61,11 +62,10 @@ const BubbleGraphs = () => {
                             delta: sum / count,
                             output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
                         }));
-                        console.log(aggregatedData)
                         const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff)
                         const aggregatedWeeklyData = aggregatedData.filter((d) => d.timestamp >= weekCutoff)
 
-                        setData({ timeData, aggregatedData, weeklyData, aggregatedWeeklyData });
+                        setData({ timeData, deltaEncoding: aggregatedData, weeklyData, aggregatedWeeklyData });
                     },
                     header: true,
                     dynamicTyping: true,
@@ -91,7 +91,7 @@ const BubbleGraphs = () => {
         const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
         // start y-axis from 300 to make vis larger and patterns clearer
         const y = d3.scaleLinear([300, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
-        const r= d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+        const r= d3.scaleLinear([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true);
         const line = d3.line()
             .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
             .x(d => x(d.timestamp))
@@ -109,7 +109,7 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-    }, [data.timeData.length, data.weeklyData, data.aggregatedData, maxGap]);
+    }, [data.timeData.length, data.weeklyData, data.deltaEncoding, maxGap]);
 
     useEffect(() => {
         if (!scales) return;
@@ -232,7 +232,7 @@ const BubbleGraphs = () => {
         svg.select(".output-line").transition().remove();
         const constraints = granularity === 24 ? cycleConstraints : weeklyConstraints;
         const activeData = granularity === 24 ? data.timeData : data.weeklyData;
-        const activeAggregated = granularity === 24 ? data.aggregatedData : data.aggregatedWeeklyData;
+        const activeAggregated = granularity === 24 ? data.deltaEncoding : data.aggregatedWeeklyData;
 
         const newY = d3.scaleLinear(
             [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
@@ -452,7 +452,7 @@ const BubbleGraphs = () => {
 
 
 
-    }, [data.aggregatedData, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales]);
+    }, [data.deltaEncoding, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales]);
 
     useEffect(() => {
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
@@ -495,15 +495,15 @@ const BubbleGraphs = () => {
                 .attr("fill", "none")
                 .attr("stroke", "brown");
 
-            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
+            const r = d3.scaleLinear([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true)
             const pack = d3.pack()
                 .size([treeWidth - weeklyConstraints.marginLeft * 6, weeklyConstraints.height - weeklyConstraints.marginTop * 6])
                 .radius(d => r(d.value))
                 .padding(4);
-            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
+            const filteredDays = data.deltaEncoding.filter((day) => (new Date(day.timestamp).getUTCDate()) === new Date("April 04, 2026").getUTCDate())
 
 
-            const root = pack(d3.hierarchy({ children: data.aggregatedData })
+            const root = pack(d3.hierarchy({ children: data.deltaEncoding })
                 .sum(d => d.delta))
 
             svg.append("rect")
@@ -571,10 +571,8 @@ const BubbleGraphs = () => {
                 .attr("fill", "none")
                 .attr("stroke", "brown");
 
-            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true)
-            const filteredDays = data.aggregatedData.filter((day) => (new Date(day.timestamp).getDate()) === new Date("April 08, 2026").getDate())
-            console.log(filteredDays)
-
+            const r = d3.scaleLinear([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true)
+            const filteredDays = data.deltaEncoding.filter((day) => (new Date(day.timestamp).getDate()) === new Date("April 08, 2026").getDate())
 
             svg.append("rect")
                 .attr("x", left)
