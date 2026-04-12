@@ -1,11 +1,13 @@
 import {useEffect} from "react";
 import * as d3 from "d3";
 
-const VerticalGraph = ({verticalRef, data, constraints}) => {
+const VerticalGraph = ({verticalRef, data}) => {
 
     useEffect(() => {
         const draw = () => {
             if (data.timeData.length === 0) return;
+            const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+
 
             const svg = d3.select(verticalRef.current);
             svg.selectAll("*").remove();

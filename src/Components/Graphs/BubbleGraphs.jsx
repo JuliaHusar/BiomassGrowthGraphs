@@ -14,11 +14,9 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
     const [data, setData] = useState({ timeData: [], aggregatedData: [], weeklyData: [], aggregatedWeeklyData: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 15 * 60 * 1000;
-    const isInitialRender = useRef(true);
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
     const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -51,18 +49,19 @@ const BubbleGraphs = () => {
                             const hourKey = new Date(val.timestamp);
                             hourKey.setMinutes(0, 0, 0, 0);
                             const k = hourKey.toISOString();
-                            if (!accumulator[k]) accumulator[k] = { timestamp: hourKey, sum: 0, count: 0, output: [] };
+                            if (!accumulator[k]) accumulator[k] = { timestamp: hourKey, sum: 0, count: 0, output: [], reduction: []};
                             accumulator[k].sum += val.scd30_co2_ppm_input - val.scd30_co2_ppm_output;
                             accumulator[k].output.push(parseInt(val.scd30_co2_ppm_input))
+                            accumulator[k].reduction.push(parseInt(val.scd30_co2_ppm_input) - parseInt(val.scd30_co2_ppm_output))
                             accumulator[k].count++;
-
                             return accumulator;
                         }, {});
-                        const aggregatedData = Object.values(preparedData).map(({ timestamp, sum, count, output }) => ({
+                        const aggregatedData = Object.values(preparedData).map(({ timestamp, sum, count, output, reduction }) => ({
                             timestamp,
                             delta: sum / count,
-                            output: output[output.length % 2]
+                            output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
                         }));
+                        console.log(aggregatedData)
                         const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff)
                         const aggregatedWeeklyData = aggregatedData.filter((d) => d.timestamp >= weekCutoff)
 
@@ -80,6 +79,7 @@ const BubbleGraphs = () => {
 
     const scales = useMemo(() => {
         if (data.timeData.length === 0) return;
+        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
         const hasNext = new Set(
             data.weeklyData
                 .slice(0, -1)
@@ -109,12 +109,14 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-    }, [data.timeData.length, data.weeklyData, data.aggregatedData, weeklyConstraints.marginLeft, weeklyConstraints.width, weeklyConstraints.marginRight, weeklyConstraints.height, weeklyConstraints.marginTop, weeklyConstraints.marginBottom, maxGap]);
+    }, [data.timeData.length, data.weeklyData, data.aggregatedData, maxGap]);
 
     useEffect(() => {
         if (!scales) return;
         if (!horizontalGraphRef.current) return;
         if (granularity === 24) return;
+        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+
 
         const draw = () => {
             const { x, y, r, line, outputLine, thresholdLine } = scales;
@@ -213,7 +215,7 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [data, scales, granularity, verticalView, weeklyConstraints.width, weeklyConstraints.height, weeklyConstraints.marginBottom, weeklyConstraints.marginTop, weeklyConstraints.marginLeft, weeklyConstraints.marginRight]);
+    }, [data, scales, granularity, verticalView]);
 
     useEffect(() => {
         const cycleConstraints = {width: 1000, height: 200, marginTop:20, marginRight: 50, marginBottom: 50, marginLeft: 40}
@@ -221,6 +223,8 @@ const BubbleGraphs = () => {
         if (!scales || !horizontalGraphRef.current) return;
         if (data.weeklyData.length === 0) return;
         if (granularity === 7) return;
+        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+
 
 
         const svg = d3.select(horizontalGraphRef.current);
@@ -258,9 +262,12 @@ const BubbleGraphs = () => {
             .x(d => (granularity=== 24 ? filteredX: x)(d.timestamp))
             .y(d => newY(d.scd30_co2_ppm_output))
 
+        /*
         const newThresholdLine = d3.line()
             .x(d => (granularity=== 24 ? filteredX: x)(d.timestamp))
             .y(d => newY(1000))
+
+         */
 
         const t = svg.transition().duration(500);
 
@@ -283,9 +290,6 @@ const BubbleGraphs = () => {
 
         svg.select(".output-line").transition(t)
             .attr("d", newOutputLine(activeData));
-
-        svg.select(".threshold-line").transition(t)
-            .attr("d", newThresholdLine(activeData));
 
         svg.selectAll("circle").transition(t)
             .attr("cy", d => newY(d.output))
@@ -448,9 +452,10 @@ const BubbleGraphs = () => {
 
 
 
-    }, [data.aggregatedData, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales, weeklyConstraints]);
+    }, [data.aggregatedData, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales]);
 
     useEffect(() => {
+        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
         const drawStandardTree = async () => {
             const treeHeight = 500;
             const treeWidth = 500;
@@ -635,7 +640,7 @@ const BubbleGraphs = () => {
 
         }
         drawCyclicTree()
-    }, [weeklyConstraints.height, weeklyConstraints.marginLeft, weeklyConstraints.marginTop, data]);
+    }, [data]);
 
     const changeGranularity = (val) => {
         //we're starting on 7 days so the granularity change should start from that state
@@ -655,7 +660,7 @@ const BubbleGraphs = () => {
                     <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
                     <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Cycle</button>
                 </div>
-                {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data} constraints={weeklyConstraints}/> : <svg ref={horizontalGraphRef}></svg>}
+                {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>}
             </div>
             <div className='flex-1 min-w-0'>
                 <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
