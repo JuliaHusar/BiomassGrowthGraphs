@@ -15,13 +15,13 @@ const BubbleGraphs = () => {
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
     const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
-    const cycleConstraints = {width: 2000, height: 200, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
-    const [data, setData] = useState({ timeData: [], aggregatedData: [] });
+    const [data, setData] = useState({ timeData: [], aggregatedData: [], weeklyData: [], aggregatedWeeklyData: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 15 * 60 * 1000;
     const isInitialRender = useRef(true);
-    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const cycleCutoff = new Date((Date.parse("2026-04-10T00:00:00.000Z")) - 30 * 24 * 60 * 60 * 1000);
+    const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
+    const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
 
     const customTimeFormat = (date) => {
         if (d3.utcDay(date) < date) {
@@ -39,13 +39,13 @@ const BubbleGraphs = () => {
 
                 Papa.parse(text, {
                     complete: (results) => {
+                        //This data is dependent on whatever the cutoff is, meaning that at the moment it will be one cycle
                         const timeData = results.data
                             .map(d => ({ ...d, timestamp: new Date(d.timestamp) }))
-                            .filter(d => d.timestamp >= cycleCutoff)
+                            .filter(d => d.timestamp >= cutoff)
                             .filter(d => d.scd30_co2_ppm_input != 0)
                             .filter(d => d.scd30_co2_ppm_output != 0)
-                        console.log(cycleCutoff)
-                        const preparedData = timeData.filter((val) => new Date(val.timestamp).getHours() != 16 && new Date(val.timestamp).getDate() != 3).reduce((accumulator, val) => {
+                        const preparedData = timeData.filter((val) => new Date(val.timestamp).getHours() !== 16 && new Date(val.timestamp).getDate() !== 3).reduce((accumulator, val) => {
                             //using hour key here, we don't want the first hour bcs offset can give us problems
                             //TODO: fix bug that could exclude certain hours that don't have a hh:mm for 00
                             const hourKey = new Date(val.timestamp);
@@ -63,7 +63,10 @@ const BubbleGraphs = () => {
                             delta: sum / count,
                             output: output[output.length % 2]
                         }));
-                        setData({ timeData, aggregatedData });
+                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff)
+                        const aggregatedWeeklyData = aggregatedData.filter((d) => d.timestamp >= weekCutoff)
+
+                        setData({ timeData, aggregatedData, weeklyData, aggregatedWeeklyData });
                     },
                     header: true,
                     dynamicTyping: true,
@@ -77,19 +80,17 @@ const BubbleGraphs = () => {
 
     const scales = useMemo(() => {
         if (data.timeData.length === 0) return;
-
-
         const hasNext = new Set(
-            data.timeData
+            data.weeklyData
                 .slice(0, -1)
-                .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
+                .filter((d, i) => data.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
                 .map(d => d.timestamp)
         );
-        hasNext.add(data.timeData.at(-1).timestamp);
+        hasNext.add(data.weeklyData.at(-1).timestamp);
 
-        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
+        const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
         // start y-axis from 300 to make vis larger and patterns clearer
-        const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+        const y = d3.scaleLinear([300, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
         const r= d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
         const line = d3.line()
             .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
@@ -108,11 +109,12 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine, thresholdLine };
-    }, [data.timeData, data.aggregatedData, weeklyConstraints.marginLeft, weeklyConstraints.width, weeklyConstraints.marginRight, weeklyConstraints.height, weeklyConstraints.marginTop, weeklyConstraints.marginBottom, maxGap]);
+    }, [data.timeData.length, data.weeklyData, data.aggregatedData, weeklyConstraints.marginLeft, weeklyConstraints.width, weeklyConstraints.marginRight, weeklyConstraints.height, weeklyConstraints.marginTop, weeklyConstraints.marginBottom, maxGap]);
 
     useEffect(() => {
         if (!scales) return;
         if (!horizontalGraphRef.current) return;
+        if (granularity === 24) return;
 
         const draw = () => {
             const { x, y, r, line, outputLine, thresholdLine } = scales;
@@ -122,8 +124,11 @@ const BubbleGraphs = () => {
                 .attr('width', weeklyConstraints.width)
                 .attr('height', weeklyConstraints.height);
 
+            const g = svg.append("g")
+                .attr("class", "first-group")
+
             // x axis
-            svg.append("g")
+            g.append("g")
                 .attr("class", "x-axis")
                 .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
                 .call(
@@ -134,12 +139,12 @@ const BubbleGraphs = () => {
                 );
 
             // vertical line at date boundaries
-            svg.append("g")
+            g.append("g")
                 .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
                 .attr("class", "vertical-line")
                 .call(
                     d3.axisBottom(x)
-                        .ticks(d3.utcDay) // ticks at day boundaries
+                        .ticks(d3.utcHour.every(12)) // ticks at day boundaries
                         .tickSize(-(weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)) // extend tick upward
                         .tickFormat("") // hide tick labels
                 )
@@ -151,7 +156,7 @@ const BubbleGraphs = () => {
                 );
 
             //y axis
-            svg.append("g")
+            g.append("g")
                 .attr('class', 'y-axis')
                 .attr("transform", `translate(${weeklyConstraints.marginLeft},0)`)
                 .call(g => g.select(".domain").remove())
@@ -161,34 +166,34 @@ const BubbleGraphs = () => {
                 .call(d3.axisLeft(y).ticks(weeklyConstraints.height / 50)) // reduce number of ticks
 
 
-            svg.append("path")
+            g.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#62a247")
                 .attr("stroke-width", 1)
-                .attr("d", line(data.timeData))
+                .attr("d", line(data.weeklyData))
                 .attr("class", "input-line")
 
-            svg.append("path")
+            g.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#9FBC93")
                 .attr("stroke-width", 1)
-                .attr("d", outputLine(data.timeData))
+                .attr("d", outputLine(data.weeklyData))
                 .attr("class", "output-line")
 
-            svg.append("path")
+            g.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "black")
                 .style("stroke-dasharray", "2, 2")
                 .attr("stroke-width", 0.6)
                 .attr("opacity", 0.7)
-                .attr("d", thresholdLine(data.timeData));
+                .attr("d", thresholdLine(data.weeklyData));
 
-            svg.append("g")
+            g.append("g")
                 .selectAll("circle")
-                .data(data.aggregatedData)
+                .data(data.aggregatedWeeklyData)
                 .join("circle")
                 .attr("cx", d => x(d.timestamp))
                 .attr("cy", d => y(d.output))
@@ -197,7 +202,7 @@ const BubbleGraphs = () => {
                 .attr("opacity", 0.7)
 
 
-            svg.append("defs").append("clipPath")
+            g.append("defs").append("clipPath")
                 .attr("id", "clip")
                 .append("rect")
                 .attr("x", weeklyConstraints.marginLeft)
@@ -208,33 +213,40 @@ const BubbleGraphs = () => {
         }
         draw();
 
-    }, [data, scales, verticalView, weeklyConstraints.width, weeklyConstraints.height, weeklyConstraints.marginBottom, weeklyConstraints.marginTop, weeklyConstraints.marginLeft, weeklyConstraints.marginRight]);
+    }, [data, scales, granularity, verticalView, weeklyConstraints.width, weeklyConstraints.height, weeklyConstraints.marginBottom, weeklyConstraints.marginTop, weeklyConstraints.marginLeft, weeklyConstraints.marginRight]);
 
     useEffect(() => {
+        const cycleConstraints = {width: 1000, height: 200, marginTop:20, marginRight: 50, marginBottom: 50, marginLeft: 40}
+
         if (!scales || !horizontalGraphRef.current) return;
+        if (data.weeklyData.length === 0) return;
+        if (granularity === 7) return;
+
 
         const svg = d3.select(horizontalGraphRef.current);
-
+        svg.select(".input-line").transition().remove();
+        svg.select(".output-line").transition().remove();
         const constraints = granularity === 24 ? cycleConstraints : weeklyConstraints;
+        const activeData = granularity === 24 ? data.timeData : data.weeklyData;
+        const activeAggregated = granularity === 24 ? data.aggregatedData : data.aggregatedWeeklyData;
 
         const newY = d3.scaleLinear(
-            [300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)],
+            [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
             [constraints.height - constraints.marginTop, constraints.marginBottom]
         );
-        const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
-        let filteredData = data.timeData.filter(d => d.timestamp >= cutoff)
-        const filteredX = d3.scaleUtc(d3.extent(filteredData, d=> d.timestamp), [cycleConstraints.marginLeft, cycleConstraints.width - cycleConstraints.marginRight])
+        const x = d3.scaleUtc(d3.extent(activeData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
+        const filteredX = d3.scaleUtc(d3.extent(activeData, d=> d.timestamp), [cycleConstraints.marginLeft, cycleConstraints.width - cycleConstraints.marginRight])
         const transitionR = d3.scaleLinear(
-            [0, d3.max(data.aggregatedData, d => Math.abs(d.delta))],
+            [0, d3.max(activeAggregated, d => Math.abs(d.delta))],
             [0, granularity === 24 ? 15 : 30]
         ).clamp(true);
         const hasNext = new Set(
-            data.timeData
+            activeData
                 .slice(0, -1)
-                .filter((d, i) => data.timeData[i + 1].timestamp - d.timestamp <= maxGap)
+                .filter((d, i) => activeData[i + 1].timestamp - d.timestamp <= maxGap)
                 .map(d => d.timestamp)
         );
-        hasNext.add(data.timeData.at(-1).timestamp);
+        hasNext.add(activeData.at(-1).timestamp);
 
         const newLine = d3.line()
             .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
@@ -267,13 +279,13 @@ const BubbleGraphs = () => {
             .call(d3.axisLeft(newY).ticks(constraints.height / 50));
 
         svg.select(".input-line").transition(t)
-            .attr("d", newLine(data.timeData));
+            .attr("d", newLine(activeData));
 
         svg.select(".output-line").transition(t)
-            .attr("d", newOutputLine(data.timeData));
+            .attr("d", newOutputLine(activeData));
 
         svg.select(".threshold-line").transition(t)
-            .attr("d", newThresholdLine(data.timeData));
+            .attr("d", newThresholdLine(activeData));
 
         svg.selectAll("circle").transition(t)
             .attr("cy", d => newY(d.output))
@@ -299,8 +311,144 @@ const BubbleGraphs = () => {
             .attr("cy", d => newY(d.output))
             .attr("r", d => transitionR(d.delta));
 
+        const weekBuckets = d3.group(
+            activeData,
+            d => {
+                const t = d.timestamp;
+                const weekStart = new Date(t);
+                weekStart.setUTCHours(0, 0, 0, 0);
+                weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+                return weekStart.toISOString().slice(0, 10);
+            }
+        );
 
-    }, [cutoff, cycleConstraints, data.aggregatedData, data.timeData, granularity, maxGap, scales, weeklyConstraints]);
+
+        if(granularity === 24){
+            svg.selectAll(".cells").remove();
+            svg.selectAll(".week-clip").remove();
+            svg.select(".threshold-line").transition().remove();
+
+
+            t.on("end", () => {
+                svg.select(".x-axis").transition().remove();
+                svg.select(".y-axis").transition().remove();
+                svg.select(".input-line").transition().remove();
+                svg.select(".output-line").transition().remove();
+                svg.selectAll("circle").transition().remove();
+                svg.select(".vertical-line").remove();
+                const row = d3.scaleBand()
+                    .domain([...weekBuckets.keys()])
+                    .range([0, constraints.height * weekBuckets.size])
+                    .padding(0.05);
+                svg.attr("height", row.range()[1] + constraints.marginBottom);
+
+                const cellContainer = svg.append('g').attr('class', 'cells');
+
+                const cells = cellContainer.selectAll('g.week-cell')
+                    .data([...weekBuckets.entries()])
+                    .join(enter => enter.append('g').attr('class', 'week-cell'))
+                    .attr('transform', ([week]) => `translate(0, ${row(week)})`)
+
+                svg.append("defs").selectAll("clipPath.week-clip")
+                    .data([...weekBuckets.entries()])
+                    .join(enter => enter.append("clipPath").attr("class", "week-clip"))
+                    .attr("id", ([week]) => `clip-${week}`)
+                    .append("rect")
+                    .attr("x", constraints.marginLeft)
+                    .attr("y", 0)
+                    .attr("width", constraints.width - constraints.marginLeft - constraints.marginRight)
+                    .attr("height", row.bandwidth())
+
+                cells.each(function([week, records]) {
+
+                    const cell = d3.select(this);
+                    const bandwidth = row.bandwidth();
+
+                    const weekStart = new Date(week + "T00:00:00Z");
+                    const weekEnd   = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+                    const xLocal = d3.scaleUtc()
+                        .domain([weekStart, weekEnd])
+                        .range([constraints.marginLeft, constraints.width - constraints.marginRight]);
+
+                    const yLocal = d3.scaleLinear(
+                        [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
+                        [row.bandwidth(), 0]
+                    );
+
+                    const localHasNext = new Set(
+                        records.slice(0, -1)
+                            .filter((d, i) => records[i + 1].timestamp - d.timestamp <= maxGap)
+                            .map(d => d.timestamp)
+                    );
+                    if (records.length > 0) localHasNext.add(records.at(-1).timestamp);
+
+                    const localLine = d3.line()
+                        .defined(d => !isNaN(d.timestamp) && localHasNext.has(d.timestamp))
+                        .x(d => xLocal(d.timestamp))
+                        .y(d => yLocal(d.scd30_co2_ppm_input));
+
+                    const localOutputLine = d3.line()
+                        .defined(d => !isNaN(d.timestamp) && localHasNext.has(d.timestamp))
+                        .x(d => xLocal(d.timestamp))
+                        .y(d => yLocal(d.scd30_co2_ppm_output));
+
+                    const xAxis = d3.axisBottom(xLocal)
+                        .ticks(d3.utcHour.every(6))
+                        .tickFormat(d => d3.utcFormat("%-I %p")(d));
+
+                    const xAxisGroup = cell.append("g")
+                        .attr("class", "cell-x-axis")
+                        .attr("transform", `translate(0, ${bandwidth})`)
+                        .call(xAxis);
+
+                    xAxisGroup.selectAll(".tick")
+                        .filter(d => d.getUTCHours() === 0)
+                        .append("text")
+                        .attr("class", "date-label")
+                        .attr("y", 30)
+                        .attr("text-anchor", "middle")
+                        .attr("fill", "currentColor")
+                        .text(d => d3.utcFormat("%B %d")(d));
+
+                    cell.append("g")
+                        .attr("class", "cell-y-axis")
+                        .attr("transform", `translate(${constraints.marginLeft}, 0)`)
+                        .call(g => g.select(".domain").remove())
+                        .call(g => g.selectAll(".tick line").clone()
+                            .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
+                            .attr("stroke-opacity", 0.1))
+                        .call(d3.axisLeft(yLocal).ticks(bandwidth / 50));
+
+
+                    cell.append("path")
+                        .transition()
+                        .attr("fill", "none")
+                        .attr("clip-path", `url(#clip-${week})`)
+                        .attr("stroke", "#62a247")
+                        .attr("stroke-width", 1)
+                        .attr("d", localLine(records));
+
+                    cell.append("path")
+                        .transition()
+                        .attr("fill", "none")
+                        .attr("clip-path", `url(#clip-${week})`)
+                        .attr("stroke", "#9FBC93")
+                        .attr("stroke-width", 1)
+                        .attr("d", localOutputLine(records));
+                });
+
+
+            });
+
+        } else {
+            svg.selectAll(".cells").transition().remove();
+            svg.selectAll(".day-clip").transition().remove();
+        }
+
+
+
+    }, [data.aggregatedData, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales, weeklyConstraints]);
 
     useEffect(() => {
         const drawStandardTree = async () => {
