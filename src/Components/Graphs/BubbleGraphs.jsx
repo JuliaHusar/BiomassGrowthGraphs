@@ -14,7 +14,7 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [] });
+    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
@@ -44,25 +44,33 @@ const BubbleGraphs = () => {
                             .filter(d => d.timestamp >= cutoff)
                             .filter(d => d.scd30_co2_ppm_input != 0)
                             .filter(d => d.scd30_co2_ppm_output != 0)
-                        const preparedData = timeData.filter((val) => new Date(val.timestamp).getHours() !== 16 && new Date(val.timestamp).getDate() !== 3).reduce((accumulator, val) => {
+                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff) //One week worth of raw input/output values
+                        const preparedData = (interval=1) => timeData.filter((val) => new Date(val.timestamp).getHours() !== 16 && new Date(val.timestamp).getDate() !== 3).reduce((accumulator, val) => {
                             //using hour key here, we don't want the first hour bcs offset can give us problems
                             //TODO: fix bug that could exclude certain hours that don't have a hh:mm for 00
-                            const hourKey = new Date(val.timestamp);
-                            hourKey.setMinutes(0, 0, 0, 0);
-                            const k = hourKey.toISOString();
-                            if (!accumulator[k]) accumulator[k] = { timestamp: hourKey, sum: 0, count: 0, output: [], reduction: []};
+                            const date = new Date(val.timestamp);
+                            const bucketHour = Math.floor(date.getHours() / interval) * interval;
+                            date.setHours(bucketHour, 0, 0, 0);
+                            const k = date.toISOString();
+                            if (!accumulator[k]) {
+                                accumulator[k] = { timestamp: date, sum: 0, count: 0, output: [], reduction: [] };
+                            }
                             accumulator[k].sum += val.scd30_co2_ppm_input - val.scd30_co2_ppm_output;
-                            accumulator[k].output.push(parseInt(val.scd30_co2_ppm_input))
-                            accumulator[k].reduction.push(parseInt(val.scd30_co2_ppm_input) - parseInt(val.scd30_co2_ppm_output))
+                            accumulator[k].output.push(parseInt(val.scd30_co2_ppm_input));
+                            accumulator[k].reduction.push(parseInt(val.scd30_co2_ppm_input) - parseInt(val.scd30_co2_ppm_output));
                             accumulator[k].count++;
                             return accumulator;
                         }, {});
-                        const aggregatedDelta = Object.values(preparedData).map(({ timestamp, sum, count, output, reduction }) => ({
+                        const aggregatedDelta = Object.values(preparedData(1)).map(({ timestamp, sum, count, output, reduction }) => ({
                             timestamp,
                             delta: sum / count,
                             output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
-                        })); // all data values from one cycle (24 days)
-                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff) //One week worth of raw input/output values
+                        })); // all data values from one cycle (7 days)
+                        const aggregatedDayPartDelta = Object.values(preparedData(6)).map(({ timestamp, sum, count, output, reduction }) => ({
+                            timestamp,
+                            delta: sum / count,
+                            output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
+                        }));
                         const aggregatedWeeklyDelta = aggregatedDelta.filter((d) => d.timestamp >= weekCutoff) // one week's worth of "delta" data that is used for representing the bubble encoding
 
                         const aggregationFunction = (inputArray, aggregationInterval) => {
@@ -89,9 +97,7 @@ const BubbleGraphs = () => {
                             scd30_co2_ppm_input: inputSum / count,
                             scd30_co2_ppm_output: outputSum / count,
                         }));
-                        // const daypartAggregation =
-
-                        setData({ timeData: calendarResult, deltaEncoding: aggregatedDelta, weeklyData: result, aggregatedWeeklyData: aggregatedWeeklyDelta, fifteenMinuteAirQualityAggregation: result});
+                        setData({ timeData: calendarResult, deltaEncoding: aggregatedDelta, weeklyData: result, aggregatedWeeklyData: aggregatedWeeklyDelta, fifteenMinuteAirQualityAggregation: result, aggregatedDayPartDelta});
                     },
                     header: true,
                     dynamicTyping: true,
@@ -258,7 +264,7 @@ const BubbleGraphs = () => {
         svg.select(".output-line").transition().remove();
         const constraints = granularity === 24 ? cycleConstraints : weeklyConstraints;
         const activeData = granularity === 24 ? data.timeData : data.weeklyData;
-        const activeAggregated = granularity === 24 ? data.deltaEncoding : data.aggregatedWeeklyData;
+        const activeAggregated = granularity === 24 ? data.aggregatedDayPartDelta : data.aggregatedWeeklyData; //if cycle is selected we'll map the delta encoding for all 24 days
 
         const newY = d3.scaleLinear(
             [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
@@ -405,6 +411,11 @@ const BubbleGraphs = () => {
                         [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
                         [row.bandwidth(), 0]
                     );
+                    const r= d3.scaleLinear([0, d3.max(activeAggregated, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+
+                    const weekAggregated = activeAggregated.filter(
+                        d => d.timestamp >= weekStart && d.timestamp < weekEnd
+                    );
 
                     const localHasNext = new Set(
                         records.slice(0, -1)
@@ -466,18 +477,17 @@ const BubbleGraphs = () => {
                         .attr("stroke-width", 1)
                         .attr("d", localOutputLine(records));
 
-                    /*
+
                     cell.append("g")
                         .selectAll("circle")
-                        .data(data.aggregatedWeeklyData)
+                        .data(weekAggregated)
                         .join("circle")
-                        .attr("cx", d => x(d.timestamp))
-                        .attr("cy", d => y(d.output))
+                        .attr("cx", d => xLocal(d.timestamp))
+                        .attr("cy", d => yLocal(d.output))
                         .attr("r", d => r(d.delta))
                         .attr("fill", "#5bb335")
                         .attr("opacity", 0.7)
 
-                     */
                 });
 
 
