@@ -235,6 +235,15 @@ const BubbleGraphs = () => {
                 .attr("fill", "#5bb335")
                 .attr("opacity", 0.7)
 
+            let tooltip = d3.selectAll(".daypartRect")
+                .append("div")
+                .style("opacity", 0)
+                .attr("class", "tooltip")
+                .style("background-color", "white")
+                .style("border", "solid")
+                .style("border-width", "2px")
+                .style("border-radius", "5px")
+                .style("padding", "5px")
 
             g.append("defs").append("clipPath")
                 .attr("id", "clip")
@@ -243,6 +252,36 @@ const BubbleGraphs = () => {
                 .attr("y", weeklyConstraints.marginTop)
                 .attr("width", weeklyConstraints.width - weeklyConstraints.marginLeft - weeklyConstraints.marginRight)
                 .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom);
+
+            let mouseover = function(d){
+                tooltip.style("opacity", 1)
+                console.log(d)
+                d3.select(this)
+                    .style("stroke", "black")
+                    .style("opacity", 1)
+            }
+            let mouseleave = function(d) {
+                tooltip
+                    .style("opacity", 0)
+                d3.select(this)
+                    .style("stroke", "none")
+                    .style("opacity", 0.8)
+            }
+
+            const tickValues = x.ticks(d3.utcHour.every(12));
+            g.append("g")
+                .selectAll("rect")
+                .attr("class", "daypartRect")
+                .data(tickValues.slice(0, -1))
+                .join("rect")
+                .attr("x", d => x(d))
+                .attr("y", weeklyConstraints.marginTop)
+                .attr("width", (d, i) => x(tickValues[i + 1]) - x(d))
+                .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)
+                .attr("fill", (_, i) => i % 2 === 0 ? "rgba(0,0,0,0.03)" : "none")
+                .on("mouseover", mouseover)
+                .on("mouseleave", mouseleave)
+
 
         }
         draw();
