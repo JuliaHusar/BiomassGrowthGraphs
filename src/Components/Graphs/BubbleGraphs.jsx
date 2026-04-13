@@ -14,9 +14,9 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [] });
+    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [] });
     const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
-    const maxGap = 15 * 60 * 1000;
+    const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
     const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -38,9 +38,9 @@ const BubbleGraphs = () => {
                 Papa.parse(text, {
                     complete: (results) => {
                         //This size of timeData var is dependent on whatever the cutoff is
-                        // meaning that at the moment it will be one cycle (24 days)
+                        // which means that at the moment it will be one cycle (24 days)
                         const timeData = results.data
-                            .map(d => ({ ...d, timestamp: new Date(d.timestamp) }))
+                            .map(d => ({ ...d, timestamp: new Date(d.timestamp)}))
                             .filter(d => d.timestamp >= cutoff)
                             .filter(d => d.scd30_co2_ppm_input != 0)
                             .filter(d => d.scd30_co2_ppm_output != 0)
@@ -57,15 +57,41 @@ const BubbleGraphs = () => {
                             accumulator[k].count++;
                             return accumulator;
                         }, {});
-                        const aggregatedData = Object.values(preparedData).map(({ timestamp, sum, count, output, reduction }) => ({
+                        const aggregatedDelta = Object.values(preparedData).map(({ timestamp, sum, count, output, reduction }) => ({
                             timestamp,
                             delta: sum / count,
                             output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
-                        }));
-                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff)
-                        const aggregatedWeeklyData = aggregatedData.filter((d) => d.timestamp >= weekCutoff)
+                        })); // all data values from one cycle (24 days)
+                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff) //One week worth of raw input/output values
+                        const aggregatedWeeklyDelta = aggregatedDelta.filter((d) => d.timestamp >= weekCutoff) // one week's worth of "delta" data that is used for representing the bubble encoding
 
-                        setData({ timeData, deltaEncoding: aggregatedData, weeklyData, aggregatedWeeklyData });
+                        const aggregationFunction = (inputArray, aggregationInterval) => {
+                            return inputArray.reduce((acc, d) => {
+                                const intervalMs = aggregationInterval * 60 * 1000;
+                                const offset = new Date().getTimezoneOffset() * 60 * 1000;
+                                const bucketKey = Math.floor((d.timestamp - offset) / intervalMs) * intervalMs + offset;
+                                if (!acc[bucketKey]) {
+                                    acc[bucketKey] = { timestamp: new Date(bucketKey), inputSum: 0, outputSum:0, count: 0 };
+                                }
+                                acc[bucketKey].inputSum += parseInt(d.scd30_co2_ppm_input);
+                                acc[bucketKey].outputSum += parseInt(d.scd30_co2_ppm_output);
+                                acc[bucketKey].count += 1;
+                                return acc;
+                            }, {});
+                        }
+                        const result = Object.values(aggregationFunction(weeklyData, 30)).map(({ timestamp, inputSum, outputSum, count }) => ({
+                            timestamp,
+                            scd30_co2_ppm_input: inputSum / count,
+                            scd30_co2_ppm_output: outputSum / count,
+                        }));
+                        const calendarResult = Object.values(aggregationFunction(timeData, 30)).map(({ timestamp, inputSum, outputSum, count }) => ({
+                            timestamp,
+                            scd30_co2_ppm_input: inputSum / count,
+                            scd30_co2_ppm_output: outputSum / count,
+                        }));
+                        // const daypartAggregation =
+
+                        setData({ timeData: calendarResult, deltaEncoding: aggregatedDelta, weeklyData: result, aggregatedWeeklyData: aggregatedWeeklyDelta, fifteenMinuteAirQualityAggregation: result});
                     },
                     header: true,
                     dynamicTyping: true,
@@ -424,7 +450,6 @@ const BubbleGraphs = () => {
                             .attr("stroke-opacity", 0.1))
                         .call(d3.axisLeft(yLocal).ticks(bandwidth / 50));
 
-
                     cell.append("path")
                         .transition()
                         .attr("fill", "none")
@@ -440,6 +465,19 @@ const BubbleGraphs = () => {
                         .attr("stroke", "#9FBC93")
                         .attr("stroke-width", 1)
                         .attr("d", localOutputLine(records));
+
+                    /*
+                    cell.append("g")
+                        .selectAll("circle")
+                        .data(data.aggregatedWeeklyData)
+                        .join("circle")
+                        .attr("cx", d => x(d.timestamp))
+                        .attr("cy", d => y(d.output))
+                        .attr("r", d => r(d.delta))
+                        .attr("fill", "#5bb335")
+                        .attr("opacity", 0.7)
+
+                     */
                 });
 
 
