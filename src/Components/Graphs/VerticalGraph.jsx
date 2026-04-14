@@ -57,7 +57,7 @@ const VerticalGraph = ({verticalRef, data}) => {
             );
 
             // x axis
-            /*
+
             svg.append("g")
                 .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
                 .call(
@@ -83,7 +83,7 @@ const VerticalGraph = ({verticalRef, data}) => {
                     .attr("stroke-width", 2.5)
                 );
 
-             */
+
 
             // what if we had like a sort of look up container where people could choose a date that they wanted to compare??? if we're really looking at user needs here
 
@@ -166,7 +166,7 @@ const VerticalGraph = ({verticalRef, data}) => {
 
         }
         draw();
-    }, [data]);
+    }, [data, verticalRef]);
 
     return(
         <div>
