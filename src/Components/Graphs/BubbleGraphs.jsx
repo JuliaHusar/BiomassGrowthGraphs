@@ -378,7 +378,7 @@ const BubbleGraphs = () => {
         }
         const verticalDraw = () => {
             if (data.timeData.length === 0) return;
-            const constraints = {width: 1000, height: 800, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+            const constraints = {width: 1000, height: 750, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
             //TODO: add spacing + format these small multiples neatly
             //TODO: add cursor that shows comparisons between different days in a way that is intuitive.
             const svg = d3.select(horizontalGraphRef.current);
@@ -388,7 +388,7 @@ const BubbleGraphs = () => {
 
             svg
                 .attr('width', constraints.width)
-                .attr('height', 1000);
+                .attr('height', 1100);
 
             const maxGap = 15 * 60 * 1000;
             console.log(data.weeklyData)
@@ -479,7 +479,7 @@ const BubbleGraphs = () => {
                 //we could do this programatically but for simplicity's sake i'm doing it with 650 as that's a reasonable bound
                 const newY = d3.scaleLinear(
                     [300, 650],
-                    [(constraints.height/4 - constraints.marginTop), constraints.marginBottom * 2]
+                    [(constraints.height/4 - constraints.marginTop), constraints.marginBottom * 2.2]
                     //this controls the height of the individual cells that we're plotting. we can play around with it?
                 );
 
@@ -512,17 +512,16 @@ const BubbleGraphs = () => {
                     .attr("stroke-width", 1)
                     .attr("d", localOutputLine(records));
 
-            });
-            // x axis
+                cell.append("g")
+                    .attr("transform", `translate(0, ${constraints.height/4 - constraints.marginBottom+10})`)
+                    .call(
+                        d3.axisBottom(xLocal)
+                            .ticks(d3.utcHour.every(6)) // ticks every 6 hours
+                            // .ticks(width / 80)
+                            .tickFormat(customTimeFormat)
+                    );
 
-            cellContainer.append("g")
-                .attr("transform", `(0,${- constraints.marginBottom})`)
-                .call(
-                    d3.axisBottom(x)
-                        .ticks(d3.utcHour.every(6)) // ticks every 6 hours
-                        // .ticks(width / 80)
-                        .tickFormat(customTimeFormat)
-                );
+            });
         }
 
         !verticalView ? draw() : verticalDraw()
