@@ -378,22 +378,17 @@ const BubbleGraphs = () => {
         }
         const verticalDraw = () => {
             if (data.timeData.length === 0) return;
-            const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
-
+            const constraints = {width: 1000, height: 800, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+            //TODO: add spacing + format these small multiples neatly
+            //TODO: add cursor that shows comparisons between different days in a way that is intuitive.
             const svg = d3.select(horizontalGraphRef.current);
-            svg.selectAll(".x-axis").transition().remove()
-            svg.selectAll(".y-axis").transition().remove()
-            svg.selectAll(".light-day").transition().remove()
-            svg.selectAll(".input-line").transition().remove()
-            svg.selectAll(".output-line").transition().remove()
-            svg.selectAll(".sequestration").transition().remove()
-            svg.selectAll(".daypartRect").transition().remove();
-            svg.selectAll(".vertical-line").transition().remove();
+
+            svg.selectAll("*").remove();
 
 
             svg
                 .attr('width', constraints.width)
-                .attr('height', constraints.height + 2000);
+                .attr('height', 1000);
 
             const maxGap = 15 * 60 * 1000;
             console.log(data.weeklyData)
@@ -406,22 +401,7 @@ const BubbleGraphs = () => {
             hasNext.add(data.weeklyData.at(-1).timestamp);
 
             const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
-            // start y-axis from 300 to make vis larger and patterns clearer
-            const y = d3.scaleLinear([300, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
             const r = d3.scaleLinear([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true);
-            const line = d3.line()
-                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-                .x(d => x(d.timestamp))
-                .y(d => y(d.scd30_co2_ppm_input));
-
-            const outputLine = d3.line()
-                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
-                .x(d => x(d.timestamp))
-                .y(d => y(d.scd30_co2_ppm_output));
-
-            const thresholdLine = d3.line()
-                .x(d => x(d.timestamp))
-                .y(d => y(400))
 
             // for formatting time format on x-axis
             const customTimeFormat = (date) => {
@@ -436,34 +416,25 @@ const BubbleGraphs = () => {
                 d => new Date(d.timestamp).toISOString().slice(0, 10)
             );
 
-            // x axis
 
+            // vertical line at date boundaries. commenting out for simplicity here
+            /*
             svg.append("g")
                 .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
                 .call(
                     d3.axisBottom(x)
-                        .ticks(d3.utcHour.every(3)) // ticks every 3 hours
-                        // .ticks(width / 80)
-                        .tickFormat(customTimeFormat)
-                );
-
-            // vertical line at date boundaries
-            svg.append("g")
-                .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
-                .call(
-                    d3.axisBottom(x)
-                        .ticks(d3.utcDay) // ticks at day boundaries
-                        .tickSize(-(constraints.height - constraints.marginTop - constraints.marginBottom)) // extend tick upward
-                        .tickFormat("") // hide tick labels
+                        .ticks(d3.utcDay)
+                        .tickSize(-(constraints.height - constraints.marginTop - constraints.marginBottom))
+                        .tickFormat("")
                 )
-                .call(g => g.select(".domain").remove()) // remove axis line
+                .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick line")
                     .attr("stroke", "black")
                     .attr("stroke-opacity", 0.06)
                     .attr("stroke-width", 2.5)
                 );
 
-
+             */
 
             // what if we had like a sort of look up container where people could choose a date that they wanted to compare??? if we're really looking at user needs here
 
@@ -472,8 +443,10 @@ const BubbleGraphs = () => {
                 .range([constraints.marginLeft, constraints.width - constraints.marginRight])
                 .padding(0.05);
 
+            const cellContainer = svg.append('g').attr('class', 'cells')
+                .attr("height", constraints.height)
+                .attr('transform', 'translate(50, 0)')
 
-            const cellContainer = svg.append('g').attr('class', 'cells');
 
             const cells = cellContainer.selectAll('g.day-cell')
                 .data([...dayBuckets.entries()])
@@ -487,13 +460,13 @@ const BubbleGraphs = () => {
                 .append("rect")
                 .attr("x", 0)
                 .attr("y", constraints.marginTop)
-                .attr("width", 2000)
+                .attr("width", constraints.width)
                 .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom);
 
+
             cells.each(function([day, records]) {
-                console.log(records)
                 const cell = d3.select(this);
-                const bandwidth = 2000;
+                const bandwidth = constraints.width;
 
                 const dayStart = new Date(day + "T00:00:00Z");
                 const dayEnd   = new Date(day + "T24:00:00Z");
@@ -502,9 +475,12 @@ const BubbleGraphs = () => {
                     .domain([dayStart, dayEnd])
                     .range([0, bandwidth]);
 
+                //we want to get the overall max and keep y-axes consistent, or else people might misinterpret encodings
+                //we could do this programatically but for simplicity's sake i'm doing it with 650 as that's a reasonable bound
                 const newY = d3.scaleLinear(
-                    [300, d3.max(records, d => d.scd30_co2_ppm_input)],
-                    [constraints.height - constraints.marginTop, constraints.marginBottom]
+                    [300, 650],
+                    [(constraints.height/4 - constraints.marginTop), constraints.marginBottom * 2]
+                    //this controls the height of the individual cells that we're plotting. we can play around with it?
                 );
 
                 const localLine = d3.line()
@@ -517,12 +493,11 @@ const BubbleGraphs = () => {
 
                 cell.append("g")
                     .attr('class', 'cell-y-axis')
-                    .attr('transform', 'translate(50, 0)')
                     .call(g => g.select(".domain").remove())
                     .call(g => g.selectAll(".tick line").clone()
                         .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                         .attr("stroke-opacity", 0.1))
-                    .call(d3.axisLeft(newY).ticks(bandwidth / 50));
+                    .call(d3.axisLeft(newY).ticks(bandwidth / 200));
                 cell.append("path")
                     .attr("fill", "none")
                     .attr("clip-path", `url(#clip-${day})`)
@@ -538,6 +513,16 @@ const BubbleGraphs = () => {
                     .attr("d", localOutputLine(records));
 
             });
+            // x axis
+
+            cellContainer.append("g")
+                .attr("transform", `(0,${- constraints.marginBottom})`)
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(d3.utcHour.every(6)) // ticks every 6 hours
+                        // .ticks(width / 80)
+                        .tickFormat(customTimeFormat)
+                );
         }
 
         !verticalView ? draw() : verticalDraw()
