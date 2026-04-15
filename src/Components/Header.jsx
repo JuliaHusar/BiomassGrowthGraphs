@@ -14,7 +14,7 @@ const Header = () => {
     return (
         <div className='flex items-center font-medium space-x-10'>
             <div className='relative flex flex-col items-center'>
-                <a href='/' onClick={() => setCurrentPage('/')}>Tree Visualization</a>
+                <a href='/' onClick={() => setCurrentPage('/')}>Bio-Blades Carbon Sequestration</a>
                 {isCurrentPage('/') && <div className='w-4/5 h-0.5 bg-black mt-2'></div>}
             </div>
         </div>
