@@ -83,7 +83,8 @@ const HourOverTimeCo2 = () => {
             const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [marginLeft, width - marginRight]);
             // start y axis from 300 to make vis larger and patterns clearer
             const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [height - marginTop, marginBottom])
-            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+            // encode delta with circle area
+            const r = d3.scaleSqrt([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 20]).clamp(true);
             const line = d3.line()
                 .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
                 .x(d => x(d.timestamp))
@@ -134,6 +135,7 @@ const HourOverTimeCo2 = () => {
                 );
 
             // tree graph for a day
+            // y axis, one on the left and another on the right
             svg.append("g")
                 .attr("transform", `translate(${width - marginRight}, 0)`)
                 .call(d3.axisLeft(y).ticks(height / 50)) // reduce number of ticks
@@ -141,6 +143,15 @@ const HourOverTimeCo2 = () => {
                 .call(g => g.selectAll(".tick").clone()
                     .attr("x2", width - marginLeft - marginRight)
                     .attr("stroke-opacity", 0.1))
+                    
+             // y axis label
+            svg.append("text")
+                .attr("transform", "rotate(-90)") 
+                .attr("x", -(height / 2))         
+                .attr("y", 10)                    
+                .attr("text-anchor", "middle")    
+                .style("font-size", "12px")
+                .text("CO2 Concentration (ppm)");
 
             svg.append("g")
                 .attr("transform", `translate(${marginLeft},0)`)
