@@ -383,6 +383,16 @@ const BubbleGraphs = () => {
             //TODO: add cursor that shows comparisons between different days in a way that is intuitive.
             const svg = d3.select(horizontalGraphRef.current);
 
+            const localTooltip = d3.select("body").append("div")
+                .attr("class", "chart-tooltip")
+                .style("position", "absolute")
+                .style("background", "white")
+                .style("border", "1px solid #ddd")
+                .style("border-radius", "4px")
+                .style("padding", "8px")
+                .style("pointer-events", "none")
+                .style("opacity", 0);
+
             svg.selectAll("*").remove();
 
 
@@ -498,19 +508,23 @@ const BubbleGraphs = () => {
                         .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                         .attr("stroke-opacity", 0.1))
                     .call(d3.axisLeft(newY).ticks(bandwidth / 200));
+
                 cell.append("path")
+                    .attr("class", "input-line")
                     .attr("fill", "none")
                     .attr("clip-path", `url(#clip-${day})`)
                     .attr("stroke", "#62a247")
                     .attr("stroke-width", 1)
-                    .attr("d", localLine(records));
+                    .attr("d", localLine(records))
+
 
                 cell.append("path")
+                    .attr("class", "output-line")
                     .attr("fill", "none")
                     .attr("clip-path", `url(#clip-${day})`)
                     .attr("stroke", "#9FBC93")
                     .attr("stroke-width", 1)
-                    .attr("d", localOutputLine(records));
+                    .attr("d", localOutputLine(records))
 
                 cell.append("g")
                     .attr("transform", `translate(0, ${constraints.height/4 - constraints.marginBottom+10})`)
@@ -519,9 +533,59 @@ const BubbleGraphs = () => {
                             .ticks(d3.utcHour.every(6)) // ticks every 6 hours
                             // .ticks(width / 80)
                             .tickFormat(customTimeFormat)
-                    );
+                    )
+            });
+
+            const cellRule = cellContainer.append("line")
+                .attr("class", "cell-rule")
+                .attr("y1", constraints.marginTop + 50)
+                .attr("y2", constraints.height*2)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.5)
+                .style("pointer-events", "none")
+                .style("display", "none");
+
+            const cellOverlay = cellContainer.append("rect")
+                .attr("class", "cell-overlay")
+                .attr("x", 0)
+                .attr("y", constraints.marginTop)
+                .attr("width", constraints.width)
+                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom + 10)
+                .attr("fill", "none")
+                .attr("pointer-events", "all");
+
+            cellOverlay.on("mousemove", function(event) {
+                const [mouseX] = d3.pointer(event);
+                const timestamp = x.invert(mouseX);
+
+                const bisect = d3.bisector(d => d.timestamp).left;
+                const index = bisect(data.weeklyData, timestamp);
+                const d = data.weeklyData[index];
+
+                if (d) {
+                    cellRule
+                        .style("display", null)
+                        .attr("x1", mouseX)
+                        .attr("x2", mouseX);
+                    localTooltip
+                        .style("opacity", 1)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .html(`
+                <div><strong>${d3.timeFormat("%b %d, %I:%M %p")(d.timestamp)}</strong></div>
+                <div>Input: ${d.scd30_co2_ppm_input.toFixed(1)} ppm</div>
+                <div>Output: ${d.scd30_co2_ppm_output.toFixed(1)} ppm</div>
+            `);
+                }
+
 
             });
+
+            cellOverlay.on("mouseleave", function() {
+                cellRule.style("display", "none");
+            });
+
         }
 
         !verticalView ? draw() : verticalDraw()
@@ -777,7 +841,6 @@ const BubbleGraphs = () => {
                             .attr("clip-path", "url(#clip)")
                             .attr("pointer-events", "none");
                     });
-
 
                     cell.append("path")
                         .transition()
