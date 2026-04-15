@@ -17,7 +17,7 @@ const BubbleGraphs = () => {
     const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
     const [lightData, setLightData] = useState({aggregatedData: [], cycleAggregatedData: []});
     const [selectedDaypart, setSelectedDaypart] = useState()
-    const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
+  //  const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
     const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -196,12 +196,14 @@ const BubbleGraphs = () => {
             .x(d => x(d.timestamp))
             .y(d => y(d.scd30_co2_ppm_output))
 
-        const thresholdLine = d3.line()
+       /* const thresholdLine = d3.line()
             .x(d => x(d.timestamp))
             .y(d => y(1000))
 
+        */
+
         // for formatting time format on x-axis
-        return { x, y, r, line, outputLine, thresholdLine };
+        return { x, y, r, line, outputLine };
     }, [data.timeData.length, data.weeklyData, data.deltaEncoding, maxGap]);
 
     useEffect(() => {
@@ -210,9 +212,8 @@ const BubbleGraphs = () => {
         if (granularity === 24) return;
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
 
-
         const draw = () => {
-            const { x, y, r, line, outputLine, thresholdLine } = scales;
+            const { x, y, r, line, outputLine } = scales;
             const svg = d3.select(horizontalGraphRef.current);
             svg.selectAll("*").remove();
             svg
@@ -286,6 +287,7 @@ const BubbleGraphs = () => {
 
 
             g.append("path")
+                .attr("class", "input-data")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#62a247")
@@ -294,13 +296,14 @@ const BubbleGraphs = () => {
                 .attr("class", "input-line")
 
             g.append("path")
+                .attr("class", "output-data")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#9FBC93")
                 .attr("stroke-width", 1)
                 .attr("d", outputLine(data.weeklyData))
                 .attr("class", "output-line")
-
+            /*
             g.append("path")
                 .attr("fill", "none")
                 .attr("clip-path", "url(#clip)")
@@ -310,7 +313,10 @@ const BubbleGraphs = () => {
                 .attr("opacity", 0.7)
                 .attr("d", thresholdLine(data.weeklyData));
 
+             */
+
             g.append("g")
+                .attr("class", "sequestration")
                 .selectAll("circle")
                 .data(data.aggregatedWeeklyData)
                 .join("circle")
@@ -370,7 +376,171 @@ const BubbleGraphs = () => {
                 .on("mouseleave", mouseleave)
 
         }
-        draw();
+        const verticalDraw = () => {
+            if (data.timeData.length === 0) return;
+            const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+
+            const svg = d3.select(horizontalGraphRef.current);
+            svg.selectAll(".x-axis").transition().remove()
+            svg.selectAll(".y-axis").transition().remove()
+            svg.selectAll(".light-day").transition().remove()
+            svg.selectAll(".input-line").transition().remove()
+            svg.selectAll(".output-line").transition().remove()
+            svg.selectAll(".sequestration").transition().remove()
+            svg.selectAll(".daypartRect").transition().remove();
+            svg.selectAll(".vertical-line").transition().remove();
+
+
+            svg
+                .attr('width', constraints.width)
+                .attr('height', constraints.height + 2000);
+
+            const maxGap = 15 * 60 * 1000;
+            console.log(data.weeklyData)
+            const hasNext = new Set(
+                data.weeklyData
+                    .slice(0, -1)
+                    .filter((d, i) => data.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
+                    .map(d => d.timestamp)
+            );
+            hasNext.add(data.weeklyData.at(-1).timestamp);
+
+            const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
+            // start y-axis from 300 to make vis larger and patterns clearer
+            const y = d3.scaleLinear([300, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
+            const r = d3.scaleLinear([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+            const line = d3.line()
+                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+                .x(d => x(d.timestamp))
+                .y(d => y(d.scd30_co2_ppm_input));
+
+            const outputLine = d3.line()
+                .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+                .x(d => x(d.timestamp))
+                .y(d => y(d.scd30_co2_ppm_output));
+
+            const thresholdLine = d3.line()
+                .x(d => x(d.timestamp))
+                .y(d => y(400))
+
+            // for formatting time format on x-axis
+            const customTimeFormat = (date) => {
+                if (d3.utcDay(date) < date) {
+                    return d3.utcFormat("%-I %p")(date); // hour + am/pm
+                } else { // at date boundaries
+                    return d3.utcFormat("%b %-d")(date); // month + day
+                }
+            };
+            let dayBuckets = d3.group(
+                data.weeklyData,
+                d => new Date(d.timestamp).toISOString().slice(0, 10)
+            );
+
+            // x axis
+
+            svg.append("g")
+                .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(d3.utcHour.every(3)) // ticks every 3 hours
+                        // .ticks(width / 80)
+                        .tickFormat(customTimeFormat)
+                );
+
+            // vertical line at date boundaries
+            svg.append("g")
+                .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(d3.utcDay) // ticks at day boundaries
+                        .tickSize(-(constraints.height - constraints.marginTop - constraints.marginBottom)) // extend tick upward
+                        .tickFormat("") // hide tick labels
+                )
+                .call(g => g.select(".domain").remove()) // remove axis line
+                .call(g => g.selectAll(".tick line")
+                    .attr("stroke", "black")
+                    .attr("stroke-opacity", 0.06)
+                    .attr("stroke-width", 2.5)
+                );
+
+
+
+            // what if we had like a sort of look up container where people could choose a date that they wanted to compare??? if we're really looking at user needs here
+
+            const row = d3.scaleBand()
+                .domain([...dayBuckets.keys()])
+                .range([constraints.marginLeft, constraints.width - constraints.marginRight])
+                .padding(0.05);
+
+
+            const cellContainer = svg.append('g').attr('class', 'cells');
+
+            const cells = cellContainer.selectAll('g.day-cell')
+                .data([...dayBuckets.entries()])
+                .join(enter => enter.append('g').attr('class', 'day-cell'))
+                .attr('transform', ([day]) => `translate(0, ${row(day)})`);
+
+            svg.append("defs").selectAll("clipPath.day-clip")
+                .data([...dayBuckets.entries()])
+                .join(enter => enter.append("clipPath").attr("class", "day-clip"))
+                .attr("id", ([day]) => `clip-${day}`)
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", constraints.marginTop)
+                .attr("width", 2000)
+                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom);
+
+            cells.each(function([day, records]) {
+                console.log(records)
+                const cell = d3.select(this);
+                const bandwidth = 2000;
+
+                const dayStart = new Date(day + "T00:00:00Z");
+                const dayEnd   = new Date(day + "T24:00:00Z");
+
+                const xLocal = d3.scaleUtc()
+                    .domain([dayStart, dayEnd])
+                    .range([0, bandwidth]);
+
+                const newY = d3.scaleLinear(
+                    [300, d3.max(records, d => d.scd30_co2_ppm_input)],
+                    [constraints.height - constraints.marginTop, constraints.marginBottom]
+                );
+
+                const localLine = d3.line()
+                    .x(d => xLocal(d.timestamp))
+                    .y(d => newY(d.scd30_co2_ppm_input));
+
+                const localOutputLine = d3.line()
+                    .x(d => xLocal(d.timestamp))
+                    .y(d => newY(d.scd30_co2_ppm_output));
+
+                cell.append("g")
+                    .attr('class', 'cell-y-axis')
+                    .attr('transform', 'translate(50, 0)')
+                    .call(g => g.select(".domain").remove())
+                    .call(g => g.selectAll(".tick line").clone()
+                        .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
+                        .attr("stroke-opacity", 0.1))
+                    .call(d3.axisLeft(newY).ticks(bandwidth / 50));
+                cell.append("path")
+                    .attr("fill", "none")
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("stroke", "#62a247")
+                    .attr("stroke-width", 1)
+                    .attr("d", localLine(records));
+
+                cell.append("path")
+                    .attr("fill", "none")
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("stroke", "#9FBC93")
+                    .attr("stroke-width", 1)
+                    .attr("d", localOutputLine(records));
+
+            });
+        }
+
+        !verticalView ? draw() : verticalDraw()
 
     }, [data, scales, granularity, verticalView, lightData]);
 
@@ -388,7 +558,6 @@ const BubbleGraphs = () => {
         svg.select(".input-line").transition().remove();
         svg.select(".output-line").transition().remove();
         svg.selectAll(".daypartRect").remove();
-
         svg.selectAll(".light-day").remove();
 
         const constraints = granularity === 24 ? cycleConstraints : weeklyConstraints;
@@ -730,9 +899,12 @@ const BubbleGraphs = () => {
                 .attr('height', treeWidth);
             svg.append("g")
 
+            /*
             const treeGroup = svg.append("g")
                 .attr("width", 100)
                 .attr("height", 100)
+
+             */
 
             var treeLine = d3.line()
                 .x((p) => p.x)
@@ -790,10 +962,13 @@ const BubbleGraphs = () => {
             const left = centerX - 50;
             const right = centerY + 50;
             const clockRadius = 120;
+            /*
             const secondTickStart = clockRadius - 20;
             const secondTickLength = -10;
             const labelRadius = clockRadius + 16;
             const secondLabelYOffset = 5;
+
+             */
             const radians = Math.PI /180
 
             const treeLineData = [
@@ -906,9 +1081,10 @@ const BubbleGraphs = () => {
                 </div>
                 <div className='space-x-2'>
                     <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
-                    <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Cycle</button>
+                    <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
                 </div>
-                {verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>}
+                {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
+                <svg ref={horizontalGraphRef}></svg>
             </div>
             <div className='flex-1 min-w-0'>
                 <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
