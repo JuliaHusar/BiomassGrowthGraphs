@@ -534,56 +534,56 @@ const BubbleGraphs = () => {
                             // .ticks(width / 80)
                             .tickFormat(customTimeFormat)
                     )
-            });
 
-            const cellRule = cellContainer.append("line")
-                .attr("class", "cell-rule")
-                .attr("y1", constraints.marginTop + 50)
-                .attr("y2", constraints.height*2)
-                .attr("stroke", "black")
-                .attr("stroke-width", 1)
-                .attr("opacity", 0.5)
-                .style("pointer-events", "none")
-                .style("display", "none");
+                const cellRule = cell.append("line")
+                    .attr("class", "cell-rule")
+                    .attr("y1", constraints.marginTop + 25)
+                    .attr("y2", constraints.height/4 - 35)
+                    .attr("stroke", "black")
+                    .attr("stroke-width", 1)
+                    .attr("opacity", 0.5)
+                    .style("pointer-events", "none")
+                    .style("display", "none");
 
-            const cellOverlay = cellContainer.append("rect")
-                .attr("class", "cell-overlay")
-                .attr("x", 0)
-                .attr("y", constraints.marginTop)
-                .attr("width", constraints.width)
-                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom + 10)
-                .attr("fill", "none")
-                .attr("pointer-events", "all");
+                const cellOverlay = cell.append("rect")
+                    .attr("class", "cell-overlay")
+                    .attr("x", 0)
+                    .attr("y", constraints.marginTop)
+                    .attr("width", constraints.width)
+                    .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom + 10)
+                    .attr("fill", "none")
+                    .attr("pointer-events", "all");
 
-            cellOverlay.on("mousemove", function(event) {
-                const [mouseX] = d3.pointer(event);
-                const timestamp = x.invert(mouseX);
+                cellOverlay.on("mousemove", function(event) {
+                    const [mouseX] = d3.pointer(event);
+                    const timestamp = xLocal.invert(mouseX);
+                    const utcDate = new Date(timestamp).setHours(new Date(timestamp).getHours()+4)
+                    const bisect = d3.bisector(d => d.timestamp).left;
+                    const index = bisect(data.weeklyData, timestamp);
+                    const d = data.weeklyData[index];
 
-                const bisect = d3.bisector(d => d.timestamp).left;
-                const index = bisect(data.weeklyData, timestamp);
-                const d = data.weeklyData[index];
-
-                if (d) {
-                    cellRule
-                        .style("display", null)
-                        .attr("x1", mouseX)
-                        .attr("x2", mouseX);
-                    localTooltip
-                        .style("opacity", 1)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 10) + "px")
-                        .html(`
-                <div><strong>${d3.timeFormat("%b %d, %I:%M %p")(d.timestamp)}</strong></div>
+                    if (d) {
+                        cellRule
+                            .style("display", null)
+                            .attr("x1", mouseX)
+                            .attr("x2", mouseX);
+                        localTooltip
+                            .style("opacity", 1)
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 10) + "px")
+                            .html(`
+                <div><strong>${d3.timeFormat("%b %d, %I:%M %p")(new Date(timestamp).setHours(new Date(timestamp).getHours()+4))}</strong></div>
                 <div>Input: ${d.scd30_co2_ppm_input.toFixed(1)} ppm</div>
                 <div>Output: ${d.scd30_co2_ppm_output.toFixed(1)} ppm</div>
             `);
-                }
+                    }
 
+                });
 
-            });
-
-            cellOverlay.on("mouseleave", function() {
-                cellRule.style("display", "none");
+                cellOverlay.on("mouseleave", function() {
+                    cellRule.style("display", "none");
+                    localTooltip.style("opacity", 0)
+                });
             });
 
         }
@@ -867,7 +867,6 @@ const BubbleGraphs = () => {
                         .attr("r", d => r(d.delta))
                         .attr("fill", "#5bb335")
                         .attr("opacity", 0.7)
-
                     let mouseover = function(d){
                         tooltip.style("opacity", 1)
                         d3.select(this)
@@ -875,6 +874,7 @@ const BubbleGraphs = () => {
                             .style("opacity", 1)
                         console.log(d.target.__data__)
                     }
+
                     let mouseleave = function(d) {
                         tooltip
                             .style("opacity", 0)
