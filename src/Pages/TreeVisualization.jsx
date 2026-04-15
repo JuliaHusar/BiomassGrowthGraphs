@@ -8,7 +8,7 @@ import WaffleGraph from "../Components/Graphs/WaffleGraph.jsx";
 import LineGraph from "../Components/Graphs/LineGraph.jsx";
 import BubbleGraphs from "../Components/Graphs/BubbleGraphs.jsx";
 
-const HistoricData = () => {
+const TreeVisualization = () => {
     const [historicData, setHistoricData] = useState([]);
     const [selectedData, setSelectedData] = useState(null);
     const width = 5000; // increased width to accommodate larger bubbles
@@ -239,8 +239,7 @@ const HistoricData = () => {
             <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
             */}
             <BubbleGraphs/>
-            <HourOverTimeCo2/>
         </div>
     );
 }
-export default HistoricData;
+export default TreeVisualization;
