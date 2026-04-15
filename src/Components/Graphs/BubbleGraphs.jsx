@@ -343,6 +343,7 @@ const BubbleGraphs = () => {
                 d3.select(this)
                     .style("stroke", "black")
                     .style("opacity", 1)
+                console.log(d.target.__data__)
             }
             let mouseleave = function(d) {
                 tooltip
@@ -352,16 +353,17 @@ const BubbleGraphs = () => {
                     .style("opacity", 0.8)
             }
 
-            const tickValues = x.ticks(d3.utcHour.every(12));
-            const boundaries = [x.domain()[0], ...tickValues, x.domain()[1]];
+            //TODO: fix bug in selector that selects four hours minus
+            const tickValues = x.ticks(d3.utcHour.every(1));
             g.append("g")
+                .attr("transform", `translate(-25, 0)`)
                 .attr("class", "daypartRect")
                 .selectAll("rect")
-                .data(boundaries.slice(0, -1))
+                .data(tickValues.map((d) => new Date(d))) //there's so weird timezone fuckery happening
                 .join("rect")
                 .attr("x", d => x(d))
                 .attr("y", weeklyConstraints.marginTop)
-                .attr("width", (d, i) => x(boundaries[i + 1]) - x(d))
+                .attr("width", (d, i) => x(tickValues[i + 1]) - x(d))
                 .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)
                 .attr("fill", () => "rgba(0,0,0,0)")
                 .on("mouseover", mouseover)
@@ -655,6 +657,7 @@ const BubbleGraphs = () => {
                         d3.select(this)
                             .style("stroke", "black")
                             .style("opacity", 1)
+                        console.log(d.target.__data__)
                     }
                     let mouseleave = function(d) {
                         tooltip
@@ -674,17 +677,17 @@ const BubbleGraphs = () => {
                         .style("border-radius", "5px")
                         .style("padding", "5px")
 
-                    const tickValues = xLocal.ticks(d3.utcHour.every(6));
-                    const boundaries = [xLocal.domain()[0], ...tickValues, xLocal.domain()[1]];
+                    const tickValues = xLocal.ticks(d3.utcHour.every(8));
 
                     cell.append("g")
-                        .attr("class", "calendarPartRect")
+                        .attr("transform", `translate(-20, 0)`)
+                        .attr("class", `calendarPartRect${records}`)
                         .selectAll("rect")
-                        .data(boundaries.slice(0, -1))
+                        .data(tickValues.slice(0, -1))
                         .join("rect")
-                        .attr("x", d => xLocal(d))
+                        .attr("x", d => xLocal(d-1))
                         .attr("y", constraints.marginTop + 35)
-                        .attr("width", (d, i) => xLocal(boundaries[i + 1]) - xLocal(d))
+                        .attr("width", (d, i) => xLocal(tickValues[i + 1]) - xLocal(d))
                         .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom)
                         .attr("fill", () => "rgba(0,0,0,0)")
                         .on("mouseover", mouseover)
