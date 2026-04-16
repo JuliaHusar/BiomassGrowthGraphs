@@ -649,43 +649,71 @@ const BubbleGraphs = () => {
             .attr("fill", "rgba(0,0,0,0)")
             .style("stroke", "none")
             .style("opacity", 0.8)
+        if(granularity === 7){
+            if (selectedDaypartRef.current.length > 0 && selectedDaypartRef.current.length < 3) {
+                svg.selectAll(".daypartRect rect")
+                    .filter(d => selectedDaypart.includes(d.toISOString()))
+                    .classed("selected", true)
+                    .attr("fill", "rgba(255,255,0,0.2)")
+                    .style("stroke", "black")
+                    .style("stroke-width", "2px")
+                    .style("opacity", 1)
+                svg.select(".selected-area").remove()
 
-        if (selectedDaypartRef.current.length > 0 && selectedDaypartRef.current.length < 3) {
-            svg.selectAll(".daypartRect rect")
-                .filter(d => selectedDaypart.includes(d.toISOString()))
-                .classed("selected", true)
-                .attr("fill", "rgba(255,255,0,0.2)")
-                .style("stroke", "black")
-                .style("stroke-width", "2px")
-                .style("opacity", 1)
-            svg.select(".selected-area").remove()
+            } else if (selectedDaypartRef.current.length >= 3) {
+                const next = selectedDaypartRef.current.slice(1);
+                selectedDaypartRef.current = next;
+                setSelectedDaypart(next);
+            }
+            if (selectedDaypartRef.current.length === 2) {
+                svg.selectAll(".selected-area").remove();
+                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
+                console.log(filteredData)
+                if (filteredData.length === 0) return;
+                const { x, y } = scales;
 
-        } else if (selectedDaypartRef.current.length >= 3) {
-        const next = selectedDaypartRef.current.slice(1);
-        selectedDaypartRef.current = next;
-        setSelectedDaypart(next);
+                const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
+                svg.select(".first-group")
+                    .append("rect")
+                    .attr("class", "selected-area")
+                    .attr("x", x(start)-20)
+                    .attr("y", constraints.marginTop)
+                    .attr("width", x(end) - x(start))
+                    .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom)
+                    .attr("fill", "rgba(255, 200, 0, 0.15)")
+                    .attr("stroke", "orange")
+                    .attr("stroke-width", 1)
+                    .attr("pointer-events", "none");
+            }
+        } else {
+                svg.selectAll(".calendarPartRect rect")
+                    .filter(d => selectedWeekPart.includes(d.toISOString()))
+                    .classed("selected", true)
+                    .attr("fill", "rgba(255,255,0,0.2)")
+                    .style("stroke", "black")
+                    .style("stroke-width", "2px")
+                    .style("opacity", 1)
+                svg.selectAll(".selected-cycle-area").remove();
+                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.timeData)
+                console.log(filteredData)
+                if (filteredData.length === 0) return;
+                const { x, y } = scales;
+
+                const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
+                svg.select(".light-day")
+                    .append("rect")
+                    .attr("class", "selected-cycle-area")
+                    .attr("x", x(start)-20)
+                    .attr("y", constraints.marginTop)
+                    .attr("width", x(end) - x(start))
+                    .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom)
+                    .attr("fill", "rgba(255, 200, 0, 0.15)")
+                    .attr("stroke", "orange")
+                    .attr("stroke-width", 1)
+                    .attr("pointer-events", "none");
         }
-        if (selectedDaypartRef.current.length === 2) {
-            svg.selectAll(".selected-area").remove();
-            const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
-            console.log(filteredData)
-            if (filteredData.length === 0) return;
-            const { x, y } = scales;
+    }, [data.weeklyData, scales, selectedDaypart, granularity, selectedWeekPart, data.timeData]);
 
-            const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
-            svg.select(".first-group")
-                .append("rect")
-                .attr("class", "selected-area")
-                .attr("x", x(start)-20)
-                .attr("y", constraints.marginTop)
-                .attr("width", x(end) - x(start))
-                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom)
-                .attr("fill", "rgba(255, 200, 0, 0.15)")
-                .attr("stroke", "orange")
-                .attr("stroke-width", 1)
-                .attr("pointer-events", "none");
-        }
-    }, [data.weeklyData, scales, selectedDaypart]);
 
     useEffect(() => {
         const cycleConstraints = {width: 1000, height: 200, marginTop:20, marginRight: 50, marginBottom: 50, marginLeft: 40}
@@ -694,9 +722,6 @@ const BubbleGraphs = () => {
         if (data.weeklyData.length === 0) return;
         if (granularity === 7) return;
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
-
-
-
         const svg = d3.select(horizontalGraphRef.current);
         svg.select(".input-line").transition().remove();
         svg.select(".output-line").transition().remove();
@@ -955,23 +980,24 @@ const BubbleGraphs = () => {
                         .attr("r", d => r(d.delta))
                         .attr("fill", "#5bb335")
                         .attr("opacity", 0.7)
-                    let mouseover = function(d){
-                        tooltip.style("opacity", 1)
+
+                    let mouseover = function (d) {
                         d3.select(this)
                             .style("stroke", "black")
                             .style("opacity", 1)
-                       // selection console.log(d.target.__data__)
+                        // console.log(d.target.__data__)
+                    }
+                    let mouseleave = function(event, d) {
+                        if(!selectedWeekPartRef.current.includes(d.toISOString())){
+                            tooltip
+                                .style("opacity", 0)
+                            d3.select(this)
+                                .style("stroke", "none")
+                                .style("opacity", 0.8)
+                        }
                     }
 
-                    let mouseleave = function(d) {
-                        tooltip
-                            .style("opacity", 0)
-                        d3.select(this)
-                            .style("stroke", "none")
-                            .style("opacity", 0.8)
-                    }
-
-                    let tooltip = d3.selectAll(".daypartRect")
+                    let tooltip = d3.selectAll(".calendarPartRect")
                         .append("div")
                         .style("opacity", 0)
                         .attr("class", "tooltip")
@@ -996,6 +1022,14 @@ const BubbleGraphs = () => {
                         .attr("fill", () => "rgba(0,0,0,0)")
                         .on("mouseover", mouseover)
                         .on("mouseleave", mouseleave)
+                        .on("click", function(event, d){
+                            const ts = d.toISOString();
+                            const next = selectedWeekPartRef.current.includes(ts)
+                                ? selectedWeekPartRef.current.filter(t => t !== ts)
+                                : [...selectedWeekPartRef.current, ts]
+                            selectedWeekPartRef.current = next
+                            setSelectedWeekPart(next)
+                        })
                 });
             });
 
@@ -1003,9 +1037,6 @@ const BubbleGraphs = () => {
             svg.selectAll(".cells").transition().remove();
             svg.selectAll(".day-clip").transition().remove();
         }
-
-
-
     }, [data.deltaEncoding, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales, data.aggregatedDayPartDelta, lightData]);
 
     //logic for drawing trees
@@ -1369,9 +1400,7 @@ return (
                 <svg ref={cyclicTreeRef} className='flex-1 w-full h-full'></svg>
                 <svg ref={treeRef} className='flex-1 w-full h-full'></svg>
             </div>
-
         </div>
-
     </div>
 );
 

@@ -78,8 +78,8 @@ export function cleanUp(svg){
     svg.select(".selected-area").remove();
 }
 
-export function filterWeekData(selectedDaypartRef, data){
-    let sortedArray = [...selectedDaypartRef.current].sort();
+export function filterWeekData(selectedRef, data){
+    let sortedArray = [...selectedRef.current].sort();
     const start = new Date(sortedArray[0]);
     const end = new Date(sortedArray[1]);
     return {filteredData: data.filter(d => d.timestamp > start && d.timestamp < end), start, end}
