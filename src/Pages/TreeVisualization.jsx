@@ -241,7 +241,7 @@ const TreeVisualization = () => {
                 </div>
 
             </div>
-            <div className='h-full w-3/4 flex flex-col relative p-6'>
+            <div className='h-full w-full flex flex-col relative p-6'>
                 <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
                 {selectedData && (
                     <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center'>
