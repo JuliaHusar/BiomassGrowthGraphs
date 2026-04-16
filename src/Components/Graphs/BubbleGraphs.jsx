@@ -1342,9 +1342,9 @@ const BubbleGraphs = () => {
 
 
     return (
-        <div className='flex flex-row w-full h-full'>
+        <div className='flex flex-row w-full h-full gap-12'>
             {/* left col */}
-            <div className='flex flex-col'>
+            <div className='flex flex-col w-3/4 min-w-0'>
                 {/* legend */}
                 <div className='self-start w-fit flex justify-center items-center'>
                     <svg ref={legendRef}></svg>
