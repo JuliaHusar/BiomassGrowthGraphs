@@ -8,7 +8,7 @@ const Dashboard = () => {
             <div className='flex flex-col items-center w-full'>
                 <Header/>
             </div>
-            <div className='mt-10 h-full'>
+            <div className='mt-10 h-full w-full'>
                 <Router/>
             </div>
             <div>
