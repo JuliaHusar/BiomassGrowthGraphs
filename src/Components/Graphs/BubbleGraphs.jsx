@@ -11,6 +11,7 @@ const BubbleGraphs = () => {
     const verticalRef = useRef();
     const cyclicTreeRef = useRef();
     const legendRef = useRef(); // for legend
+
     //TODO: filter out any data where output is higher than input
     //TODO: add maintenance for any data that is null :)
 
@@ -20,10 +21,12 @@ const BubbleGraphs = () => {
     const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
     const [lightData, setLightData] = useState({ aggregatedData: [], cycleAggregatedData: [] });
     const [selectedDaypart, setSelectedDaypart] = useState([])
+    const [selectedWeekPart, setSelectedWeekPart] = useState([])
+
     //  const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
     const selectedDaypartRef = useRef(selectedDaypart);
-
+    const selectedWeekPartRef = useRef(selectedWeekPart);
 
     const customTimeFormat = (date) => {
         if (d3.utcDay(date) < date) {
@@ -816,7 +819,6 @@ const BubbleGraphs = () => {
         if (granularity === 24) {
             cleanUp(svg)
             // we want to reset this so that when we're switching between views we can reuse the ref for the cycle stuff
-            selectedDaypartRef.current = []
             t.on("end", () => {
 
                 svg.selectAll("circle").transition().remove();
@@ -1421,7 +1423,7 @@ const BubbleGraphs = () => {
                     <div>
                         <svg ref={horizontalGraphRef}></svg>
                         <div>
-                            <DataViewer selectedDaypartRef={selectedDaypartRef} data={data} granularity={granularity} />
+                            <DataViewer selectedDaypartRef={selectedDaypartRef} data={data} granularity={granularity} selectedWeekPartRef={selectedWeekPartRef} />
                         </div>
                     </div>
                 </div>
