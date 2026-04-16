@@ -1,8 +1,12 @@
-const DataViewer = ({selectedData}) => {
+import {filterWeekData} from "./Math/HelperFunctions.js";
+
+const DataViewer = ({selectedDaypartRef, data, granularity}) => {
+    if (granularity === 24) selectedDaypartRef.current = []
+    const selectedData = filterWeekData(selectedDaypartRef, data.weeklyData)
     return(
         <div>
             {selectedData.filteredData.map((d) => (
-                <p>{d.timestamp.toString()}</p>
+                <p key={d.timestamp}>{d.timestamp.toString()}</p>
             ))}
         </div>
     )

@@ -810,6 +810,8 @@ const BubbleGraphs = () => {
         //full cycle visualization
         if(granularity === 24){
             cleanUp(svg)
+            // we want to reset this so that when we're switching between views we can reuse the ref for the cycle stuff
+            selectedDaypartRef.current = []
             t.on("end", () => {
 
                 svg.selectAll("circle").transition().remove();
@@ -1349,7 +1351,7 @@ return (
                     <div>
                         <svg ref={horizontalGraphRef}></svg>
                         <div>
-                            <DataViewer selectedData={filterWeekData(selectedDaypartRef, data.weeklyData)}/>
+                            <DataViewer selectedDaypartRef={selectedDaypartRef} data={data} granularity={granularity}/>
                         </div>
                     </div>
             </div>
