@@ -2,6 +2,8 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import Papa from "papaparse";
 import * as d3 from 'd3';
 import VerticalGraph from "./VerticalGraph.jsx";
+import {cleanUp, filterWeekData} from "../Math/HelperFunctions.js";
+import DataViewer from "../DataViewer.jsx";
 
 const BubbleGraphs = () => {
     const horizontalGraphRef = useRef();
@@ -20,8 +22,6 @@ const BubbleGraphs = () => {
     const [selectedDaypart, setSelectedDaypart] = useState([])
   //  const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
-    const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
-    const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const selectedDaypartRef = useRef(selectedDaypart);
 
 
@@ -35,6 +35,8 @@ const BubbleGraphs = () => {
 
     useEffect(() => {
         const getCSV = async () => {
+            const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
+            const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             try {
                 const response = await fetch('/04-14-2026.csv')
                 const text = await response.text();
@@ -112,7 +114,10 @@ const BubbleGraphs = () => {
             }
         }
         const getLightData = async () => {
+            const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
+            const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             try{
+
                 const response = await fetch('LightValues-2026-RawValues.csv');
                 const text = await response.text();
                 Papa.parse(text, {
@@ -185,7 +190,7 @@ const BubbleGraphs = () => {
 
         const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
         // start y-axis from 300 to make vis larger and patterns clearer
-        const y = d3.scaleLinear([300, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+        const y = d3.scaleLinear([350, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
         // encode delta with circle area
         const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
         const line = d3.line()
@@ -212,7 +217,7 @@ const BubbleGraphs = () => {
         if (!scales) return;
         if (!horizontalGraphRef.current) return;
         if (granularity === 24) return;
-        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+        const weeklyConstraints = {width: 1000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
 
         const draw = () => {
             const { x, y, r, line, outputLine } = scales;
@@ -277,7 +282,7 @@ const BubbleGraphs = () => {
 
             const lightY = d3.scaleLinear()
                 .domain([0, d3.max(lightData.aggregatedData, d => d.light_in)])
-                .range([weeklyConstraints.marginBottom, weeklyConstraints.height -  weeklyConstraints.marginTop - 300]);
+                .range([weeklyConstraints.marginBottom, weeklyConstraints.height -  weeklyConstraints.marginTop - 350]);
             const color = d3.scaleLog().domain([d3.min(lightData.aggregatedData, d=> d.light_in),d3.max(lightData.aggregatedData, d => d.light_in)])
                          .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
             dayKeys.forEach(day => {
@@ -296,7 +301,6 @@ const BubbleGraphs = () => {
                     .attr("clip-path", "url(#clip)")
                     .attr("pointer-events", "none");
             });
-
 
             g.append("path")
                 .attr("class", "input-data")
@@ -393,17 +397,9 @@ const BubbleGraphs = () => {
                     const next = selectedDaypartRef.current.includes(ts)
                         ? selectedDaypartRef.current.filter(t => t !== ts)
                         : [...selectedDaypartRef.current, ts]
-
                     selectedDaypartRef.current = next
                     setSelectedDaypart(next)
                 })
-            g.selectAll(".daypartRect rect")
-                .filter(d => selectedDaypartRef.current.includes(d.toISOString()))
-                .classed("selected", true)
-                .attr("fill", "rgba(255,255,0,0.2)")
-                .style("stroke", "black")
-                .style("stroke-width", "10px")
-                .style("opacity", 1)
         }
         const verticalDraw = () => {
             if (data.timeData.length === 0) return;
@@ -423,11 +419,7 @@ const BubbleGraphs = () => {
                 .style("opacity", 0);
 
             svg.selectAll("*").remove();
-
-
-            svg
-                .attr('width', constraints.width)
-                .attr('height', 1100);
+            svg.attr('width', constraints.width).attr('height', 1100);
 
             const maxGap = 15 * 60 * 1000;
             const hasNext = new Set(
@@ -438,7 +430,6 @@ const BubbleGraphs = () => {
             );
             hasNext.add(data.weeklyData.at(-1).timestamp);
 
-            const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
             const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
 
             // for formatting time format on x-axis
@@ -453,8 +444,6 @@ const BubbleGraphs = () => {
                 data.weeklyData,
                 d => new Date(d.timestamp).toISOString().slice(0, 10)
             );
-
-
             // vertical line at date boundaries. commenting out for simplicity here
             /*
             svg.append("g")
@@ -485,7 +474,6 @@ const BubbleGraphs = () => {
                 .attr("height", constraints.height)
                 .attr('transform', 'translate(50, 0)')
 
-
             const cells = cellContainer.selectAll('g.day-cell')
                 .data([...dayBuckets.entries()])
                 .join(enter => enter.append('g').attr('class', 'day-cell'))
@@ -515,7 +503,7 @@ const BubbleGraphs = () => {
                 //we want to get the overall max and keep y-axes consistent, or else people might misinterpret encodings
                 //we could do this programatically but for simplicity's sake i'm doing it with 650 as that's a reasonable bound
                 const newY = d3.scaleLinear(
-                    [300, 650],
+                    [350, 650],
                     [(constraints.height/4 - constraints.marginTop), constraints.marginBottom * 2.2]
                     //this controls the height of the individual cells that we're plotting. we can play around with it?
                 );
@@ -535,12 +523,8 @@ const BubbleGraphs = () => {
                         .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                         .attr("stroke-opacity", 0.1))
                     .call(d3.axisLeft(newY).ticks(bandwidth / 200));
-
                 const filteredDay = lightData.aggregatedData
                     .filter((d) => d.timestamp.toISOString().slice(0, 10) === day)
-                const lightY = d3.scaleLinear()
-                    .domain([0, d3.max(filteredDay, d => d.light_in)])
-                    .range([constraints.marginBottom, constraints.height -  constraints.marginTop - 300]);
                 const color = d3.scaleLog().domain([d3.min(filteredDay, d=> d.light_in),d3.max(lightData.aggregatedData, d => d.light_in)])
                     .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
                     cell.append("g")
@@ -576,23 +560,23 @@ const BubbleGraphs = () => {
                     .attr("d", localOutputLine(records))
 
                 cell.append("g")
+                    .attr("class", "sequestration")
+                    .selectAll("circle")
+                    .data(data.aggregatedWeeklyData.filter((d) => new Date(d.timestamp).getHours() !== 19)) //bcs of utc weirdness, this has to be 19
+                    .join("circle")
+                    .attr("cx", d => xLocal(d.timestamp))
+                    .attr("cy", d => newY(d.output))
+                    .attr("r", d => r(d.delta))
+                    .attr("fill", "#5bb335")
+                    .attr("opacity", 0.7)
+
+                cell.append("g")
                     .attr("transform", `translate(0, ${constraints.height/4 - constraints.marginBottom+10})`)
                     .call(
                         d3.axisBottom(xLocal)
                             .ticks(d3.utcHour.every(6)) // ticks every 6 hours
-                            // .ticks(width / 80)
                             .tickFormat(customTimeFormat)
                     )
-
-                const cellRule = cell.append("line")
-                    .attr("class", "cell-rule")
-                    .attr("y1", constraints.marginTop + 25)
-                    .attr("y2", constraints.height/4 - 35)
-                    .attr("stroke", "black")
-                    .attr("stroke-width", 1)
-                    .attr("opacity", 0.5)
-                    .style("pointer-events", "none")
-                    .style("display", "none");
 
                 const cellOverlay = cell.append("rect")
                     .attr("class", "cell-overlay")
@@ -602,6 +586,17 @@ const BubbleGraphs = () => {
                     .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom + 10)
                     .attr("fill", "none")
                     .attr("pointer-events", "all");
+
+                const cellRule = svg.append("line")
+                    .attr("class", "cell-rule")
+                    .attr("y1", constraints.marginTop + 25)
+                    .attr("y2", constraints.height * 1.5)
+                    .attr("stroke", "black")
+                    .attr("stroke-width", 2)
+                    .attr("opacity", 1)
+                    .attr("z-index", 100)
+                    .style("pointer-events", "none")
+                    .style("display", "none");
 
                 cellOverlay.on("mousemove", function(event) {
                     const [mouseX] = d3.pointer(event);
@@ -614,8 +609,8 @@ const BubbleGraphs = () => {
                     if (d) {
                         cellRule
                             .style("display", null)
-                            .attr("x1", mouseX)
-                            .attr("x2", mouseX);
+                            .attr("x1", mouseX + constraints.marginLeft)
+                            .attr("x2", mouseX + constraints.marginLeft);
                         localTooltip
                             .style("opacity", 1)
                             .style("left", (event.pageX + 10) + "px")
@@ -668,21 +663,12 @@ const BubbleGraphs = () => {
         }
         if (selectedDaypartRef.current.length === 2) {
             svg.selectAll(".selected-area").remove();
-
-            let sortedArray = [...selectedDaypartRef.current].sort();
-            const start = new Date(sortedArray[0]);
-            const end = new Date(sortedArray[1]);
-
+            const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
+            console.log(filteredData)
+            if (filteredData.length === 0) return;
             const { x, y } = scales;
 
-            const filteredData = data.weeklyData.filter(
-                d => d.timestamp > start && d.timestamp < end
-            );
-
-            if (filteredData.length === 0) return;
-
             const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
-
             svg.select(".first-group")
                 .append("rect")
                 .attr("class", "selected-area")
@@ -695,7 +681,6 @@ const BubbleGraphs = () => {
                 .attr("stroke-width", 1)
                 .attr("pointer-events", "none");
         }
-
     }, [data.weeklyData, scales, selectedDaypart]);
 
     useEffect(() => {
@@ -719,7 +704,7 @@ const BubbleGraphs = () => {
         const activeAggregated = granularity === 24 ? data.aggregatedDayPartDelta : data.aggregatedWeeklyData; //if cycle is selected we'll map the delta encoding for all 24 days
 
         const newY = d3.scaleLinear(
-            [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
+            [350, d3.max(activeData, d => d.scd30_co2_ppm_input)],
             [constraints.height - constraints.marginTop, constraints.marginBottom]
         );
         const x = d3.scaleUtc(d3.extent(activeData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
@@ -821,17 +806,9 @@ const BubbleGraphs = () => {
         );
 
 
-
+        //full cycle visualization
         if(granularity === 24){
-            svg.selectAll(".cells").remove();
-            svg.selectAll(".week-clip").remove();
-            svg.selectAll(".daypartRect").remove();
-            svg.select(".threshold-line").transition().remove();
-            svg.select(".x-axis").transition().remove();
-            svg.select(".y-axis").transition().remove();
-            svg.select(".input-line").transition().remove();
-            svg.select(".output-line").transition().remove();
-
+            cleanUp(svg)
             t.on("end", () => {
 
                 svg.selectAll("circle").transition().remove();
@@ -839,10 +816,10 @@ const BubbleGraphs = () => {
                 const row = d3.scaleBand()
                     .domain([...weekBuckets.keys()])
                     .range([0, constraints.height * weekBuckets.size])
-                    .padding(0.05);
+                    .padding(0.05)
                 svg.attr("height", row.range()[1] + constraints.marginBottom);
 
-                const cellContainer = svg.append('g').attr('class', 'cells');
+                const cellContainer = svg.append('g').attr('class', 'cells')
 
                 const cells = cellContainer.selectAll('g.week-cell')
                     .data([...weekBuckets.entries()])
@@ -872,7 +849,7 @@ const BubbleGraphs = () => {
                         .range([constraints.marginLeft, constraints.width - constraints.marginRight]);
 
                     const yLocal = d3.scaleLinear(
-                        [300, d3.max(activeData, d => d.scd30_co2_ppm_input)],
+                        [350, d3.max(activeData, d => d.scd30_co2_ppm_input)],
                         [row.bandwidth(), 0]
                     );
                     const r = d3.scaleSqrt([0, d3.max(activeAggregated, d => Math.abs(d.delta))], [0, 12]).clamp(true);
@@ -1026,6 +1003,7 @@ const BubbleGraphs = () => {
 
     }, [data.deltaEncoding, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales, data.aggregatedDayPartDelta, lightData]);
 
+    //logic for drawing trees
     useEffect(() => {
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
         const drawStandardTree = async () => {
@@ -1296,20 +1274,28 @@ const BubbleGraphs = () => {
                         <button id='horizontal' className={'p-2'} onClick={() => setVerticalView(false)}>Horizontal</button>
                         <button id='vertical' className={'p-2'} onClick={() => setVerticalView(true)}>Vertical</button>
                     </div>
+                    <div>
+
+                    </div>
                     <div className='space-x-2'>
                         <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
                         <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
                     </div>
                     {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
-                    <svg ref={horizontalGraphRef}></svg>
+                    <div>
+                        <svg ref={horizontalGraphRef}></svg>
+                        <div>
+                            <DataViewer selectedData={filterWeekData(selectedDaypartRef, data.weeklyData)}/>
+                        </div>
+                    </div>
                 </div>
             </div>
-
             {/* right col */}
             <div className='flex-1 min-w-0'>
                 <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
                 <svg ref={treeRef} width="100%" height="100%"></svg>
             </div>
+
         </div>
     );
 
