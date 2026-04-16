@@ -16,11 +16,12 @@ const BubbleGraphs = () => {
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
     const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
     const [lightData, setLightData] = useState({aggregatedData: [], cycleAggregatedData: []});
-    const [selectedDaypart, setSelectedDaypart] = useState()
+    const [selectedDaypart, setSelectedDaypart] = useState([])
   //  const cycleMap = new Map().set("Cycle 1", [new Date("03/05/2026"), new Date("03/28/2026")])
     const maxGap = 30 * 60 * 1000; //this value must align with whatever the aggregation interval is for the result var. idk why
     const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
     const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const selectedDaypartRef = useRef(selectedDaypart);
 
 
     const customTimeFormat = (date) => {
@@ -345,18 +346,19 @@ const BubbleGraphs = () => {
                 .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom);
 
             let mouseover = function(d){
-                tooltip.style("opacity", 1)
                 d3.select(this)
                     .style("stroke", "black")
                     .style("opacity", 1)
-                console.log(d.target.__data__)
+               // console.log(d.target.__data__)
             }
-            let mouseleave = function(d) {
-                tooltip
-                    .style("opacity", 0)
-                d3.select(this)
-                    .style("stroke", "none")
-                    .style("opacity", 0.8)
+            let mouseleave = function(event, d) {
+                if(!selectedDaypartRef.current.includes(d.toISOString())){
+                    tooltip
+                        .style("opacity", 0)
+                    d3.select(this)
+                        .style("stroke", "none")
+                        .style("opacity", 0.8)
+                }
             }
 
             //TODO: fix bug in selector that selects four hours minus
@@ -367,6 +369,7 @@ const BubbleGraphs = () => {
                 .selectAll("rect")
                 .data(tickValues.map((d) => new Date(d))) //there's so weird timezone fuckery happening
                 .join("rect")
+                .attr("class", d => d)
                 .attr("x", d => x(d))
                 .attr("y", weeklyConstraints.marginTop)
                 .attr("width", (d, i) => x(tickValues[i + 1]) - x(d))
@@ -374,7 +377,22 @@ const BubbleGraphs = () => {
                 .attr("fill", () => "rgba(0,0,0,0)")
                 .on("mouseover", mouseover)
                 .on("mouseleave", mouseleave)
+                .on("click", function(event, d) {
+                    const ts = d.toISOString();
+                    const next = selectedDaypartRef.current.includes(ts)
+                        ? selectedDaypartRef.current.filter(t => t !== ts)
+                        : [...selectedDaypartRef.current, ts]
 
+                    selectedDaypartRef.current = next
+                    setSelectedDaypart(next)
+                })
+            g.selectAll(".daypartRect rect")
+                .filter(d => selectedDaypartRef.current.includes(d.toISOString()))
+                .classed("selected", true)
+                .attr("fill", "rgba(255,255,0,0.2)")
+                .style("stroke", "black")
+                .style("stroke-width", "10px")
+                .style("opacity", 1)
         }
         const verticalDraw = () => {
             if (data.timeData.length === 0) return;
@@ -401,7 +419,6 @@ const BubbleGraphs = () => {
                 .attr('height', 1100);
 
             const maxGap = 15 * 60 * 1000;
-            console.log(data.weeklyData)
             const hasNext = new Set(
                 data.weeklyData
                     .slice(0, -1)
@@ -591,6 +608,63 @@ const BubbleGraphs = () => {
         !verticalView ? draw() : verticalDraw()
 
     }, [data, scales, granularity, verticalView, lightData]);
+
+    useEffect(() => {
+        if (!horizontalGraphRef.current) return;
+        const svg = d3.select(horizontalGraphRef.current);
+
+        svg.selectAll(".daypartRect rect")
+            .classed("selected", false)
+            .attr("fill", "rgba(0,0,0,0)")
+            .style("stroke", "none")
+            .style("opacity", 0.8)
+
+        if (selectedDaypartRef.current.length > 0 && selectedDaypartRef.current.length < 3) {
+            svg.selectAll(".daypartRect rect")
+                .filter(d => selectedDaypart.includes(d.toISOString()))
+                .classed("selected", true)
+                .attr("fill", "rgba(255,255,0,0.2)")
+                .style("stroke", "black")
+                .style("stroke-width", "2px")
+                .style("opacity", 1)
+            svg.select(".selected-area").remove()
+
+        } else if (selectedDaypartRef.current.length >= 3) {
+        const next = selectedDaypartRef.current.slice(1);
+        selectedDaypartRef.current = next;
+        setSelectedDaypart(next);
+        }
+        if (selectedDaypartRef.current.length === 2) {
+            svg.selectAll(".selected-area").remove();
+
+            let sortedArray = [...selectedDaypartRef.current].sort();
+            const start = new Date(sortedArray[0]);
+            const end = new Date(sortedArray[1]);
+
+            const { x, y } = scales;
+
+            const filteredData = data.weeklyData.filter(
+                d => d.timestamp > start && d.timestamp < end
+            );
+
+            if (filteredData.length === 0) return;
+
+            const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
+
+            svg.select(".first-group")
+                .append("rect")
+                .attr("class", "selected-area")
+                .attr("x", x(start)-20)
+                .attr("y", constraints.marginTop)
+                .attr("width", x(end) - x(start))
+                .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom)
+                .attr("fill", "rgba(255, 200, 0, 0.15)")
+                .attr("stroke", "orange")
+                .attr("stroke-width", 1)
+                .attr("pointer-events", "none");
+        }
+
+    }, [data.weeklyData, scales, selectedDaypart]);
 
     useEffect(() => {
         const cycleConstraints = {width: 1000, height: 200, marginTop:20, marginRight: 50, marginBottom: 50, marginLeft: 40}
@@ -872,7 +946,7 @@ const BubbleGraphs = () => {
                         d3.select(this)
                             .style("stroke", "black")
                             .style("opacity", 1)
-                        console.log(d.target.__data__)
+                       // console.log(d.target.__data__)
                     }
 
                     let mouseleave = function(d) {
