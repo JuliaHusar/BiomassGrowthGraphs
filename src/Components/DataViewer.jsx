@@ -14,6 +14,7 @@ const DataViewer = ({selectedDaypartRef, selectedWeekPartRef, data, granularity}
                 </div>
                 :
                 <div>
+
                 </div>
             }
         </div>

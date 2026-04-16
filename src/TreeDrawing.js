@@ -1,7 +1,6 @@
 import * as d3 from 'd3';
 export const drawCyclicTree = async (cyclicTreeRef, data) => {
     const clockRadius = 120;
-
     const treeHeight = 500;
     const treeWidth = 500;
     const centerY = treeHeight / 2;
@@ -54,19 +53,8 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
     svg.selectAll("*").remove();
     svg
         .attr('width', treeHeight)
-        .attr('height', treeWidth);
-    svg.append("g")
-
-    // var treeLine = d3.line()
-    //     .x((p) => p.x)
-    //     .y((p) => p.y)
-    //     .curve(d3.curveBumpX)
-    //     .curve(d3.curveBumpY)
-
-    // svg.append("path")
-    //     .attr("d", treeLine(treeLineData))
-    //     .attr("fill", "none")
-    //     .attr("stroke", "brown");
+        .attr('height', 1000);
+    const treeContainer = svg.append("g").attr("class", "tree-container")
 
     var treeLine = d3.line()
         .x((p) => p.x)
@@ -74,7 +62,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
         .curve(d3.curveBasis)
 
     // left curve for tree trunk
-    svg.append("path")
+    treeContainer.append("path")
         .datum(leftCurveData)
         .attr("d", treeLine)
         .attr("fill", "none")
@@ -83,17 +71,14 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
         .attr("transform", `translate(0, 65)`);
 
     // right curve
-    svg.append("path")
+    treeContainer.append("path")
         .datum(rightCurveData)
         .attr("d", treeLine)
         .attr("fill", "none")
         .attr("stroke", "#5C4033")
         .attr("stroke-width", 2)
         .attr("transform", `translate(0, 65)`);
-
-    const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true)
-    const filteredDays = data.deltaEncoding.filter((day) => (new Date(day.timestamp).getDate()) === new Date("April 08, 2026").getDate())
-
+    const r = d3.scaleSqrt([0, d3.max(data, d => Math.abs(d.delta))], [0, 12]).clamp(true)
     // svg.append("rect")
     //     .attr("x", left)
     //     .attr("y", centerY - 20)
@@ -101,16 +86,16 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
     //     .attr("height", 100)
     //     .attr("fill", "white");
 
-    svg.append("g")
+    treeContainer.append("g")
         .selectAll("path")
-        .data(filteredDays)
+        .data(data)
         .enter()
         .append("path")
         .attr("fill", "#69b3a2")
         .attr("d", d3.arc()
             .innerRadius(clockRadius))
 
-    const g = svg.append("g")
+    const g = treeContainer.append("g")
         .attr("transform", `translate(${centerX}, ${centerY - 20})`);
 
     const twentyfourHours = d3
@@ -119,11 +104,11 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
         .domain([0, 24]);
 
     const color = d3.scaleSequential()
-        .domain([0, d3.max(filteredDays, d => d.delta)])
+        .domain([0, d3.max(data, d => d.delta)])
         .interpolator(d3.interpolateGreens);
 
     g.selectAll(".hour-data")
-        .data(filteredDays)
+        .data(data)
         .enter()
         .append("circle")
         .attr("cx", d => clockRadius * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
@@ -134,7 +119,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
 
 
     g.selectAll(".hour-label")
-        .data(filteredDays)
+        .data(data)
         .enter()
         .append("text")
         .attr("text-anchor", "middle")

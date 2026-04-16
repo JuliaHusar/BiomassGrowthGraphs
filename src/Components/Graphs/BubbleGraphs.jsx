@@ -674,7 +674,6 @@ const BubbleGraphs = () => {
             if (selectedDaypartRef.current.length === 2) {
                 svg.selectAll(".selected-area").remove();
                 const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
-                console.log(filteredData)
                 if (filteredData.length === 0) return;
                 const { x, y } = scales;
 
@@ -701,11 +700,9 @@ const BubbleGraphs = () => {
                     .style("opacity", 1)
                 svg.selectAll(".selected-cycle-area").remove();
                 const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.timeData)
-                console.log(filteredData)
                 if (filteredData.length === 0) return;
                 const { x, y } = scales;
-
-                const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
+            const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
                 svg.select(".light-day")
                     .append("rect")
                     .attr("class", "selected-cycle-area")
@@ -1048,9 +1045,12 @@ const BubbleGraphs = () => {
     //logic for drawing trees
     useEffect(() => {
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+        if(selectedDaypart.length === 2){
+            const {start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
+            drawCyclicTree(cyclicTreeRef, data.deltaEncoding.filter((d) => d.timestamp > start && d.timestamp < end))
+        }
         drawStandardTree(treeRef, data, weeklyConstraints)
-        drawCyclicTree(cyclicTreeRef, data)
-    }, [data]);
+    }, [data, selectedWeekPartRef, selectedDaypart]);
 
     const changeGranularity = (val) => {
         //we're starting on 7 days so the granularity change should start from that state
@@ -1203,7 +1203,7 @@ const BubbleGraphs = () => {
                 </div>
             </div>
             {/* right col */}
-            <div className='flex-1 min-w-0 flex flex-col'>
+            <div className='flex-1 w-full flex flex-col overflow-scroll'>
                 <div className='p-4 space-y-4'>
                     {/* <p className='text-left text-gray-800 text-lg'>
                         One Bio-Blade provides annual carbon removal equivalent to <strong>one maple tree</strong>.
@@ -1214,9 +1214,9 @@ const BubbleGraphs = () => {
                         Select a time range on the timeline to see the net carbon removal during this period visualized in the trees.
                     </p>
                 </div>
-                <div className='flex-1 min-h-0 w-full flex flex-col'>
-                    <svg ref={cyclicTreeRef} className='flex-1 w-full h-full'></svg>
-                    <svg ref={treeRef} className='flex-1 w-full h-full'></svg>
+                <div className='w-full flex flex-col overflow-scroll'>
+                    <svg ref={cyclicTreeRef} className='w-full h-full overflow-scroll'></svg>
+                    <svg ref={treeRef} className='w-full h-full overflow-scroll'></svg>
                 </div>
 
             </div>
