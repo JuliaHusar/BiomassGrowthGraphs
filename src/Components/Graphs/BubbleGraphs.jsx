@@ -49,7 +49,7 @@ const BubbleGraphs = () => {
                             .filter(d => d.scd30_co2_ppm_input !== 0)
                             .filter(d => d.scd30_co2_ppm_output !== 0)
                         const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff) //One week worth of raw input/output values
-                        const preparedData = (interval = 1) => timeData.filter((val) => new Date(val.timestamp).getHours() !== 16 && new Date(val.timestamp).getDate() !== 3).reduce((accumulator, val) => {
+                        const preparedData = (interval = 1) => timeData.filter((val) => new Date(val.timestamp).getHours()).reduce((accumulator, val) => {
                             //using hour key here, we don't want the first hour bcs offset can give us problems
                             // 1 interval is for 1 week while 6 interval is cycle (6*4)
                             //TODO: fix bug that could exclude certain hours that don't have a hh:mm for 00
@@ -124,7 +124,6 @@ const BubbleGraphs = () => {
                             .map(d => ({ ...d, timestamp: new Date(d.timestamp)}))
                             .filter(d => d.timestamp >= cutoff)
                         const preparedData = (interval = 1) => lightData
-                            .filter(val => new Date(val.timestamp).getUTCHours() !== 16 && new Date(val.timestamp).getUTCDate() !== 3)
                             .reduce((accumulator, val) => {
                                 const date = new Date(val.timestamp);
                                 const bucketHour = Math.floor(date.getUTCHours() / interval) * interval;
@@ -138,7 +137,6 @@ const BubbleGraphs = () => {
                                 return accumulator;
                             }, {});
                         const preparedAggregatedData = (interval = 1) => aggregatedLightData
-                            .filter(val => new Date(val.timestamp).getUTCHours() !== 16 && new Date(val.timestamp).getUTCDate() !== 3)
                             .reduce((accumulator, val) => {
                                 const date = new Date(val.timestamp);
                                 const bucketHour = Math.floor(date.getUTCHours() / interval) * interval;
@@ -159,6 +157,7 @@ const BubbleGraphs = () => {
                             timestamp,
                             light_in: (() => {return Math.sign(sum/count) === -1 ? 1 : sum/count})()
                         })); // all data values from one cycle (24 days)
+                        console.log(aggregatedData)
                         setLightData({aggregatedData, cycleAggregatedData})
                     },
                     header: true,
@@ -280,7 +279,7 @@ const BubbleGraphs = () => {
                 .domain([0, d3.max(lightData.aggregatedData, d => d.light_in)])
                 .range([weeklyConstraints.marginBottom, weeklyConstraints.height -  weeklyConstraints.marginTop - 300]);
             const color = d3.scaleLog().domain([d3.min(lightData.aggregatedData, d=> d.light_in),d3.max(lightData.aggregatedData, d => d.light_in)])
-                         .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F, #FFCA28"])
+                         .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
             dayKeys.forEach(day => {
                 const dayRecords = lightData.aggregatedData.filter(d => d.timestamp.toISOString().slice(0, 10) === day);
                 g.append("g")
@@ -431,7 +430,6 @@ const BubbleGraphs = () => {
                 .attr('height', 1100);
 
             const maxGap = 15 * 60 * 1000;
-            console.log(data.weeklyData)
             const hasNext = new Set(
                 data.weeklyData
                     .slice(0, -1)
@@ -503,7 +501,6 @@ const BubbleGraphs = () => {
                 .attr("width", constraints.width)
                 .attr("height", constraints.height - constraints.marginTop - constraints.marginBottom);
 
-
             cells.each(function([day, records]) {
                 const cell = d3.select(this);
                 const bandwidth = constraints.width;
@@ -538,6 +535,27 @@ const BubbleGraphs = () => {
                         .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                         .attr("stroke-opacity", 0.1))
                     .call(d3.axisLeft(newY).ticks(bandwidth / 200));
+
+                const filteredDay = lightData.aggregatedData
+                    .filter((d) => d.timestamp.toISOString().slice(0, 10) === day)
+                const lightY = d3.scaleLinear()
+                    .domain([0, d3.max(filteredDay, d => d.light_in)])
+                    .range([constraints.marginBottom, constraints.height -  constraints.marginTop - 300]);
+                const color = d3.scaleLog().domain([d3.min(filteredDay, d=> d.light_in),d3.max(lightData.aggregatedData, d => d.light_in)])
+                    .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
+                    cell.append("g")
+                        .attr("class", `light-day`)
+                        .selectAll("rect")
+                        .data(filteredDay)
+                        .join("rect")
+                        .attr("x", d => xLocal(d.timestamp))
+                        .attr("y", constraints.marginTop)
+                        .attr("width", xLocal(new Date(xLocal.domain()[0].getTime() + 60 * 60 * 1000)) - xLocal(xLocal.domain()[0]))
+                        .attr("height", constraints.height / 4 - constraints.marginTop - constraints.marginBottom)
+                        .attr("fill", d => color(d.light_in))
+                        .attr("opacity", 0.5)
+                        .attr("clip-path", `url(#clip-${day})`)
+                        .attr("pointer-events", "none");
 
                 cell.append("path")
                     .attr("class", "input-line")
@@ -959,7 +977,7 @@ const BubbleGraphs = () => {
                         d3.select(this)
                             .style("stroke", "black")
                             .style("opacity", 1)
-                        console.log(d.target.__data__)
+                       // selection console.log(d.target.__data__)
                     }
 
                     let mouseleave = function(d) {
