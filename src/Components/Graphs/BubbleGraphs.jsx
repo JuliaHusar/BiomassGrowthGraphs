@@ -244,22 +244,7 @@ const BubbleGraphs = () => {
                         .tickFormat(customTimeFormat)
                 );
 
-            // vertical line at date boundaries
-            g.append("g")
-                .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
-                .attr("class", "vertical-line")
-                .call(
-                    d3.axisBottom(x)
-                        .ticks(d3.utcHour.every(12)) // ticks at day boundaries
-                        .tickSize(-(weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)) // extend tick upward
-                        .tickFormat("") // hide tick labels
-                )
-                .call(g => g.select(".domain").remove()) // remove axis line
-                .call(g => g.selectAll(".tick line")
-                    .attr("stroke", "black")
-                    .attr("stroke-opacity", 0.06)
-                    .attr("stroke-width", 2.5)
-                );
+
 
             //y axis
             g.append("g")
@@ -296,7 +281,7 @@ const BubbleGraphs = () => {
                     .data(dayRecords)
                     .join("rect")
                     .attr("x", d => x(d.timestamp))
-                    .attr("y", d => lightY(weeklyConstraints.height - weeklyConstraints.marginBottom))
+                    .attr("y", y.range()[1]) // full height of y axis
                     .attr("width", weeklyConstraints.width / 24)
                     .attr("height", weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)
                     .attr("fill", d => color(d.light_in))
@@ -304,6 +289,23 @@ const BubbleGraphs = () => {
                     .attr("clip-path", "url(#clip)")
                     .attr("pointer-events", "none");
             });
+
+            // vertical line at date boundaries
+            g.append("g")
+                .attr("transform", `translate(0,${weeklyConstraints.height - weeklyConstraints.marginBottom})`)
+                .attr("class", "vertical-line")
+                .call(
+                    d3.axisBottom(x)
+                        .ticks(d3.utcHour.every(24)) // ticks at day boundaries
+                        .tickSize(-(weeklyConstraints.height - weeklyConstraints.marginTop - weeklyConstraints.marginBottom)) // extend tick upward
+                        .tickFormat("") // hide tick labels
+                )
+                .call(g => g.select(".domain").remove()) // remove axis line
+                .call(g => g.selectAll(".tick line")
+                    .attr("stroke", "black")
+                    .attr("stroke-opacity", 0.06)
+                    .attr("stroke-width", 2.5)
+                );
 
             g.append("path")
                 .attr("class", "input-data")
@@ -367,10 +369,10 @@ const BubbleGraphs = () => {
                 d3.select(this)
                     .style("stroke", "black")
                     .style("opacity", 1)
-               // console.log(d.target.__data__)
+                // console.log(d.target.__data__)
             }
-            let mouseleave = function(event, d) {
-                if(!selectedDaypartRef.current.includes(d.toISOString())){
+            let mouseleave = function (event, d) {
+                if (!selectedDaypartRef.current.includes(d.toISOString())) {
                     tooltip
                         .style("opacity", 0)
                     d3.select(this)
@@ -395,7 +397,7 @@ const BubbleGraphs = () => {
                 .attr("fill", () => "rgba(0,0,0,0)")
                 .on("mouseover", mouseover)
                 .on("mouseleave", mouseleave)
-                .on("click", function(event, d) {
+                .on("click", function (event, d) {
                     const ts = d.toISOString();
                     const next = selectedDaypartRef.current.includes(ts)
                         ? selectedDaypartRef.current.filter(t => t !== ts)
@@ -498,7 +500,7 @@ const BubbleGraphs = () => {
                 const bandwidth = constraints.width;
 
                 const dayStart = new Date(day + "T00:00:00Z");
-                const dayEnd   = new Date(day + "T24:00:00Z");
+                const dayEnd = new Date(day + "T24:00:00Z");
 
                 const xLocal = d3.scaleUtc()
                     .domain([dayStart, dayEnd])
@@ -527,24 +529,27 @@ const BubbleGraphs = () => {
                         .attr("x2", constraints.width - constraints.marginLeft - constraints.marginRight)
                         .attr("stroke-opacity", 0.1))
                     .call(d3.axisLeft(newY).ticks(bandwidth / 200));
+
                 const filteredDay = lightData.aggregatedData
                     .filter((d) => d.timestamp.toISOString().slice(0, 10) === day)
+
                 const color = d3.scaleLog().domain([d3.min(filteredDay, d=> d.light_in),d3.max(lightData.aggregatedData, d => d.light_in)])
                     .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
-                    cell.append("g")
-                        .attr("class", `light-day`)
-                        .attr("transform", `translate(0, ${constraints.marginBottom+10})`)
-                        .selectAll("rect")
-                        .data(filteredDay)
-                        .join("rect")
-                        .attr("x", d => xLocal(d.timestamp))
-                        .attr("y", constraints.marginTop)
-                        .attr("width", xLocal(new Date(xLocal.domain()[0].getTime() + 60 * 60 * 1000)) - xLocal(xLocal.domain()[0]))
-                        .attr("height", constraints.height / 4 - constraints.marginTop - constraints.marginBottom * 2)
-                        .attr("fill", d => color(d.light_in))
-                        .attr("opacity", 0.5)
-                        .attr("clip-path", `url(#clip-${day})`)
-                        .attr("pointer-events", "none");
+
+                cell.append("g")
+                    .attr("class", `light-day`)
+                    .attr("transform", `translate(0, ${constraints.marginBottom + 10})`)
+                    .selectAll("rect")
+                    .data(filteredDay)
+                    .join("rect")
+                    .attr("x", d => xLocal(d.timestamp))
+                    .attr("y", constraints.marginTop)
+                    .attr("width", xLocal(new Date(xLocal.domain()[0].getTime() + 60 * 60 * 1000)) - xLocal(xLocal.domain()[0]))
+                    .attr("height", constraints.height / 4 - constraints.marginTop - constraints.marginBottom * 2)
+                    .attr("fill", d => color(d.light_in))
+                    .attr("opacity", 0.5)
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("pointer-events", "none");
 
                 cell.append("path")
                     .attr("class", "input-line")
@@ -721,7 +726,7 @@ const BubbleGraphs = () => {
         if (!scales || !horizontalGraphRef.current) return;
         if (data.weeklyData.length === 0) return;
         if (granularity === 7) return;
-        const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+        const weeklyConstraints = { width: 2000, height: 500, marginTop: 20, marginRight: 30, marginBottom: 30, marginLeft: 40 }
         const svg = d3.select(horizontalGraphRef.current);
         svg.select(".input-line").transition().remove();
         svg.select(".output-line").transition().remove();
@@ -1047,18 +1052,23 @@ const BubbleGraphs = () => {
             const treeWidth = 500;
             const centerY = treeHeight / 2;
             const centerX = treeWidth / 2;
-            const top = centerY + 50;
+            const top = centerY + 70;
             const bottom = centerY + 240;
             const left = centerX - 50;
             const right = centerY + 50;
+            const midY = top + (bottom - top) / 2;
 
-            const treeLineData = [
+            const leftCurveData = [
                 { x: left + 20, y: top },
+                { x: left + 35, y: midY },
+                { x: left, y: bottom }
+            ];
+
+            const rightCurveData = [
                 { x: right - 20, y: top },
-                { x: right, y: bottom },
-                { x: left, y: bottom },
-                { x: left + 20, y: top },
-            ]
+                { x: right - 35, y: midY },
+                { x: right, y: bottom }
+            ];
             const svg = d3.select(treeRef.current);
             svg.selectAll("*").remove();
             svg
@@ -1076,13 +1086,25 @@ const BubbleGraphs = () => {
             var treeLine = d3.line()
                 .x((p) => p.x)
                 .y((p) => p.y)
-                .curve(d3.curveBumpX)
-                .curve(d3.curveBumpY)
+                .curve(d3.curveBasis)
 
+            // left curve for tree trunk
             svg.append("path")
-                .attr("d", treeLine(treeLineData))
+                .datum(leftCurveData)
+                .attr("d", treeLine)
                 .attr("fill", "none")
-                .attr("stroke", "brown");
+                .attr("stroke", "#5C4033")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(0, 60)`);
+
+            // right curve
+            svg.append("path")
+                .datum(rightCurveData)
+                .attr("d", treeLine)
+                .attr("fill", "none")
+                .attr("stroke", "#5C4033")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(0, 60)`);
 
             const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true)
             const pack = d3.pack()
@@ -1120,15 +1142,39 @@ const BubbleGraphs = () => {
         }
         drawStandardTree()
         const drawCyclicTree = async () => {
+            const clockRadius = 120;
+
             const treeHeight = 500;
             const treeWidth = 500;
-            const centerY = treeHeight/2;
-            const centerX = treeWidth/2;
-            const top = centerY + 50;
+            const centerY = treeHeight / 2;
+            const centerX = treeWidth / 2;
+            const top = centerY + 70;
             const bottom = centerY + 240;
             const left = centerX - 50;
             const right = centerY + 50;
-            const clockRadius = 120;
+            const midY = top + (bottom - top) / 2;
+
+            const leftCurveData = [
+                { x: left + 20, y: top },
+                { x: left + 35, y: midY },
+                { x: left, y: bottom }
+            ];
+
+            const rightCurveData = [
+                { x: right - 20, y: top },
+                { x: right - 35, y: midY },
+                { x: right, y: bottom }
+            ];
+
+            // const treeHeight = 500;
+            // const treeWidth = 500;
+            // const centerY = treeHeight / 2;
+            // const centerX = treeWidth / 2;
+            // const top = centerY + 50;
+            // const bottom = centerY + 240;
+            // const left = centerX - 50;
+            // const right = centerY + 50;
+            // const clockRadius = 120;
             /*
             const secondTickStart = clockRadius - 20;
             const secondTickLength = -10;
@@ -1136,15 +1182,16 @@ const BubbleGraphs = () => {
             const secondLabelYOffset = 5;
 
              */
-            const radians = Math.PI /180
+            const radians = Math.PI / 180
 
-            const treeLineData = [
-                { x: left + 20, y: top },
-                { x: right - 20, y: top },
-                { x: right, y: bottom },
-                { x: left, y: bottom },
-                { x: left + 20, y: top },
-            ]
+            // const treeLineData = [
+            //     { x: left + 20, y: top },
+            //     { x: right - 20, y: top },
+            //     { x: right, y: bottom },
+            //     { x: left, y: bottom },
+            //     { x: left + 20, y: top },
+            // ]
+
             const svg = d3.select(cyclicTreeRef.current);
             svg.selectAll("*").remove();
             svg
@@ -1152,26 +1199,49 @@ const BubbleGraphs = () => {
                 .attr('height', treeWidth);
             svg.append("g")
 
+            // var treeLine = d3.line()
+            //     .x((p) => p.x)
+            //     .y((p) => p.y)
+            //     .curve(d3.curveBumpX)
+            //     .curve(d3.curveBumpY)
+
+            // svg.append("path")
+            //     .attr("d", treeLine(treeLineData))
+            //     .attr("fill", "none")
+            //     .attr("stroke", "brown");
+
             var treeLine = d3.line()
                 .x((p) => p.x)
                 .y((p) => p.y)
-                .curve(d3.curveBumpX)
-                .curve(d3.curveBumpY)
+                .curve(d3.curveBasis)
 
+            // left curve for tree trunk
             svg.append("path")
-                .attr("d", treeLine(treeLineData))
+                .datum(leftCurveData)
+                .attr("d", treeLine)
                 .attr("fill", "none")
-                .attr("stroke", "brown");
+                .attr("stroke", "#5C4033")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(0, 65)`);
+
+            // right curve
+            svg.append("path")
+                .datum(rightCurveData)
+                .attr("d", treeLine)
+                .attr("fill", "none")
+                .attr("stroke", "#5C4033")
+                .attr("stroke-width", 2)
+                .attr("transform", `translate(0, 65)`);
 
             const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true)
             const filteredDays = data.deltaEncoding.filter((day) => (new Date(day.timestamp).getDate()) === new Date("April 08, 2026").getDate())
 
-            svg.append("rect")
-                .attr("x", left)
-                .attr("y", centerY-20)
-                .attr("width", 100)
-                .attr("height", 100)
-                .attr("fill", "white");
+            // svg.append("rect")
+            //     .attr("x", left)
+            //     .attr("y", centerY - 20)
+            //     .attr("width", 100)
+            //     .attr("height", 100)
+            //     .attr("fill", "white");
 
             svg.append("g")
                 .selectAll("path")
@@ -1183,7 +1253,7 @@ const BubbleGraphs = () => {
                     .innerRadius(clockRadius))
 
             const g = svg.append("g")
-                .attr("transform", `translate(${centerX}, ${centerY-20})`);
+                .attr("transform", `translate(${centerX}, ${centerY - 20})`);
 
             const twentyfourHours = d3
                 .scaleLinear()
@@ -1221,22 +1291,22 @@ const BubbleGraphs = () => {
                 })
                 .style("font-size", "12px");
 
-    /*
-    g.selectAll(".hour-tick")
-        .data(d3.range(0, 24))
-        .enter()
-        .append("line")
-        .attr("x1", 0)
-        .attr("x2", 0)
-        .attr("y1", secondTickStart)
-        .attr("y2", secondTickStart + secondTickLength)
-        .attr("stroke", "black")
-        .attr("transform", d => `rotate(${twentyfourHours(d)})`);
+            /*
+            g.selectAll(".hour-tick")
+                .data(d3.range(0, 24))
+                .enter()
+                .append("line")
+                .attr("x1", 0)
+                .attr("x2", 0)
+                .attr("y1", secondTickStart)
+                .attr("y2", secondTickStart + secondTickLength)
+                .attr("stroke", "black")
+                .attr("transform", d => `rotate(${twentyfourHours(d)})`);
 
-             */
+                     */
 
-}
-drawCyclicTree()
+        }
+        drawCyclicTree()
     }, [data]);
 
     const changeGranularity = (val) => {
@@ -1244,165 +1314,170 @@ drawCyclicTree()
         setGranularity(val)
     }
 
-// for legend
-useEffect(() => {
-    const svg = d3.select(legendRef.current);
-    svg.selectAll("*").remove();
+    // for legend
+    useEffect(() => {
+        const svg = d3.select(legendRef.current);
+        svg.selectAll("*").remove();
 
-    svg.attr("width", 600).attr("height", 120);
+        svg.attr("width", 600).attr("height", 120);
 
-    // circle legend
-    // define circle scale
-    const maxDelta = d3.max(data.deltaEncoding, d => Math.abs(d.delta));
-    const r = d3.scaleSqrt()
-        .domain([0, maxDelta])
-        .range([0, 12])
-        .clamp(true);
+        // circle legend
+        // define circle scale
+        const maxDelta = d3.max(data.deltaEncoding, d => Math.abs(d.delta));
+        const r = d3.scaleSqrt()
+            .domain([0, maxDelta])
+            .range([0, 12])
+            .clamp(true);
 
-    // pick values to show in legend
-    // const legendValues = [maxDelta, maxDelta / 2, maxDelta / 10].map(Math.round);
-    const legendValues = [50, 30, 10, 1].map(Math.round).sort((a, b) => a - b);
+        // pick values to show in legend
+        // const legendValues = [maxDelta, maxDelta / 2, maxDelta / 10].map(Math.round);
+        const legendValues = [50, 30, 10, 1].map(Math.round).sort((a, b) => a - b);
 
-    const sizeLegend = svg.append("g")
-        .attr("transform", `translate(20, 45)`)
-        .attr("font-family", "sans-serif");
+        const sizeLegend = svg.append("g")
+            .attr("transform", `translate(20, 45)`)
+            .attr("font-family", "sans-serif");
 
-    sizeLegend.append("text")
-        .attr("x", 65)
-        .attr("y", -30)
-        .attr("font-size", "14px")
-        .attr("font-weight", "500")
-        .attr("fill", "#353535")
-        .attr("text-anchor", "middle")
-        .text("Net Carbon Removal (ppm)");
+        sizeLegend.append("text")
+            .attr("x", 65)
+            .attr("y", -30)
+            .attr("font-size", "14px")
+            .attr("font-weight", "500")
+            .attr("fill", "#353535")
+            .attr("text-anchor", "middle")
+            .text("Net Carbon Removal (ppm)");
 
-    const circleSpacing = 70;
+        const circleSpacing = 70;
 
-    // draw circles in a row
-    sizeLegend.selectAll("circle")
-        .data(legendValues)
-        .join("circle")
-        .attr("cx", (d, i) => i * circleSpacing)
-        .attr("cy", 0)
-        .attr("r", d => r(d))
-        .attr("fill", "#5bb335")
-        .attr("opacity", 0.5);
+        // draw circles in a row
+        sizeLegend.selectAll("circle")
+            .data(legendValues)
+            .join("circle")
+            .attr("cx", (d, i) => i * circleSpacing)
+            .attr("cy", 0)
+            .attr("r", d => r(d))
+            .attr("fill", "#5bb335")
+            .attr("opacity", 0.5);
 
-    // labels
-    sizeLegend.selectAll("text.label")
-        .data(legendValues)
-        .join("text")
-        .attr("class", "label")
-        .attr("x", (d, i) => i * circleSpacing)
-        .attr("y", 45)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "14px")
-        .attr("fill", "#353535")
-        .text(d => d);
+        // labels
+        sizeLegend.selectAll("text.label")
+            .data(legendValues)
+            .join("text")
+            .attr("class", "label")
+            .attr("x", (d, i) => i * circleSpacing)
+            .attr("y", 45)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "14px")
+            .attr("fill", "#353535")
+            .text(d => d);
 
-    // sunlight legend
-    const minLight = d3.min(lightData.aggregatedData, d => d.light_in);
-    const maxLight = d3.max(lightData.aggregatedData, d => d.light_in);
-    const colors = ["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"];
-    const gradientWidth = 200;
+        // sunlight legend
+        const minLight = d3.min(lightData.aggregatedData, d => d.light_in);
+        const maxLight = d3.max(lightData.aggregatedData, d => d.light_in);
+        const colors = ["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"];
+        const gradientWidth = 200;
 
-    const lightLegend = svg.append("g")
-        .attr("transform", `translate(350, 55)`);
+        const lightLegend = svg.append("g")
+            .attr("transform", `translate(350, 55)`);
 
-    const gradient = svg.append("defs")
-        .append("linearGradient")
-        .attr("id", "light-gradient")
-        .attr("x1", "0%")
-        .attr("y1", "0%")
-        .attr("x2", "100%")
-        .attr("y2", "0%");
+        const gradient = svg.append("defs")
+            .append("linearGradient")
+            .attr("id", "light-gradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "100%")
+            .attr("y2", "0%");
 
-    // color gradient
-    gradient.selectAll("stop")
-        .data(colors)
-        .join("stop")
-        .attr("offset", (d, i) => `${(i / (colors.length - 1)) * 100}%`)
-        .attr("stop-color", d => d);
+        // color gradient
+        gradient.selectAll("stop")
+            .data(colors)
+            .join("stop")
+            .attr("offset", (d, i) => `${(i / (colors.length - 1)) * 100}%`)
+            .attr("stop-color", d => d);
 
-    // title
-    lightLegend.append("text")
-        .attr("x", 40)
-        .attr("y", -40)
-        .attr("font-size", "14px")
-        .attr("fill", "#353535")
-        .attr("text-anchor", "middle")
-        .text("Sunlight (lux)");
+        // title
+        lightLegend.append("text")
+            .attr("x", 40)
+            .attr("y", -40)
+            .attr("font-size", "14px")
+            .attr("fill", "#353535")
+            .attr("text-anchor", "middle")
+            .text("Sunlight (lux)");
 
-    // draw strip
-    lightLegend.append("rect")
-        .attr("x", 0)
-        .attr("y", -10)
-        .attr("width", gradientWidth)
-        .attr("height", 15)
-        .style("fill", "url(#light-gradient)");
+        // draw strip
+        lightLegend.append("rect")
+            .attr("x", 0)
+            .attr("y", -10)
+            .attr("width", gradientWidth)
+            .attr("height", 15)
+            .style("fill", "url(#light-gradient)");
 
-    // axis
-    const legendScale = d3.scaleLog()
-        .domain([minLight, maxLight])
-        .range([0, gradientWidth]);
+        // axis
+        const legendScale = d3.scaleLog()
+            .domain([minLight, maxLight])
+            .range([0, gradientWidth]);
 
-    lightLegend.append("g")
-        .attr("transform", "translate(0, 5)")
-        .call(
-            d3.axisBottom(legendScale)
-                .tickValues([1, 10, 100, 1000])
-                .tickSize(5)
-        )
-        .call(g => g.select(".domain").remove())
-        .attr("font-size", "12px")
-        .attr("color", "#353535");
-
-
-}, [data, lightData]);
+        lightLegend.append("g")
+            .attr("transform", "translate(0, 5)")
+            .call(
+                d3.axisBottom(legendScale)
+                    .tickValues([1, 10, 100, 1000])
+                    .tickSize(5)
+            )
+            .call(g => g.select(".domain").remove())
+            .attr("font-size", "12px")
+            .attr("color", "#353535");
 
 
+    }, [data, lightData]);
 
-return (
-    <div className='flex flex-row w-full h-full gap-4'>
-        {/* left col */}
-        <div className='flex flex-col w-2/3 min-w-0'>
-            {/* legend */}
-            <div className='self-start w-fit flex justify-center items-center'>
-                <svg ref={legendRef}></svg>
-            </div>
-            {/* timeline vis */}
-            <div className=' overflow-x-scroll'>
-                <div>
-                    <button id='horizontal' className={'p-2'} onClick={() => setVerticalView(false)}>Horizontal</button>
-                    <button id='vertical' className={'p-2'} onClick={() => setVerticalView(true)}>Vertical</button>
+
+
+    return (
+        <div className='flex flex-row w-full h-full gap-4'>
+            {/* left col */}
+            <div className='flex flex-col w-2/3 min-w-0'>
+                {/* legend */}
+                <div className='self-start w-fit flex justify-center items-center'>
+                    <svg ref={legendRef}></svg>
                 </div>
-                <div className='space-x-2'>
-                    <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
-                    <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
-                </div>
-                {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
+                {/* timeline vis */}
+                <div className=' overflow-x-scroll'>
+                    <div>
+                        <button id='horizontal' className={'p-2'} onClick={() => setVerticalView(false)}>Horizontal</button>
+                        <button id='vertical' className={'p-2'} onClick={() => setVerticalView(true)}>Vertical</button>
+                    </div>
+                    <div className='space-x-2'>
+                        <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
+                        <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
+                    </div>
+                    {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
                     <div>
                         <svg ref={horizontalGraphRef}></svg>
                         <div>
                             <DataViewer selectedDaypartRef={selectedDaypartRef} data={data} granularity={granularity} selectedWeekPartRef={selectedWeekPartRef} />
                         </div>
                     </div>
+                </div>
+            </div>
+            {/* right col */}
+            <div className='flex-1 min-w-0 flex flex-col'>
+                <div className='p-4 space-y-4'>
+                    {/* <p className='text-left text-gray-800 text-lg'>
+                        One Bio-Blade provides annual carbon removal equivalent to <strong>one maple tree</strong>.
+                        The 12 Bio-Blades at the Innovation Barn are therefore equivalent to <strong>12</strong>
+                        maple trees, or <strong>0.7 acres</strong> of maple-tree planting area.
+                    </p> */}
+                    <p className='text-left text-gray-800 text-lg'>
+                        Select a time range on the timeline to see the net carbon removal during this period visualized in the trees.
+                    </p>
+                </div>
+                <div className='flex-1 min-h-0 w-full flex flex-col'>
+                    <svg ref={cyclicTreeRef} className='flex-1 w-full h-full'></svg>
+                    <svg ref={treeRef} className='flex-1 w-full h-full'></svg>
+                </div>
             </div>
         </div>
-        {/* right col */}
-        <div className='flex-1 min-w-0 flex flex-col'>
-            <div className='p-4'>
-                <p className='text-left text-gray-800 text-lg'>
-                    Select a time range on the timeline to see the net carbon removal during this period visualized in the trees.
-                </p>
-            </div>
-            <div className='flex-1 min-h-0 w-full flex flex-col'>
-                <svg ref={cyclicTreeRef} className='flex-1 w-full h-full'></svg>
-                <svg ref={treeRef} className='flex-1 w-full h-full'></svg>
-            </div>
-        </div>
-    </div>
-);
+    );
 
 }
 export default BubbleGraphs;
