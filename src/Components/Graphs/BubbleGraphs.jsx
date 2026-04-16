@@ -543,20 +543,20 @@ const BubbleGraphs = () => {
                     .range([constraints.marginBottom, constraints.height - constraints.marginTop - 300]);
                 const color = d3.scaleLog().domain([d3.min(filteredDay, d => d.light_in), d3.max(lightData.aggregatedData, d => d.light_in)])
                     .range(["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"])
-                    cell.append("g")
-                        .attr("class", `light-day`)
-                        .attr("transform", `translate(0, ${constraints.marginBottom+10})`)
-                        .selectAll("rect")
-                        .data(filteredDay)
-                        .join("rect")
-                        .attr("x", d => xLocal(d.timestamp))
-                        .attr("y", constraints.marginTop)
-                        .attr("width", xLocal(new Date(xLocal.domain()[0].getTime() + 60 * 60 * 1000)) - xLocal(xLocal.domain()[0]))
-                        .attr("height", constraints.height / 4 - constraints.marginTop - constraints.marginBottom * 2)
-                        .attr("fill", d => color(d.light_in))
-                        .attr("opacity", 0.5)
-                        .attr("clip-path", `url(#clip-${day})`)
-                        .attr("pointer-events", "none");
+                cell.append("g")
+                    .attr("class", `light-day`)
+                    .attr("transform", `translate(0, ${constraints.marginBottom + 10})`)
+                    .selectAll("rect")
+                    .data(filteredDay)
+                    .join("rect")
+                    .attr("x", d => xLocal(d.timestamp))
+                    .attr("y", constraints.marginTop)
+                    .attr("width", xLocal(new Date(xLocal.domain()[0].getTime() + 60 * 60 * 1000)) - xLocal(xLocal.domain()[0]))
+                    .attr("height", constraints.height / 4 - constraints.marginTop - constraints.marginBottom * 2)
+                    .attr("fill", d => color(d.light_in))
+                    .attr("opacity", 0.5)
+                    .attr("clip-path", `url(#clip-${day})`)
+                    .attr("pointer-events", "none");
 
                 cell.append("path")
                     .attr("class", "input-line")
@@ -1196,181 +1196,196 @@ const BubbleGraphs = () => {
                 .enter()
                 .append("text")
                 .attr("text-anchor", "middle")
-                .attr("x", d => 140 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
-                .attr("y", d => -140 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+                .attr("x", d => 150 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
+                .attr("y", d => -150 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
                 .text(d => new Date(d.timestamp).getHours() + ":00")
+                .text(d => { // AM PM format for shorter labels
+                    const h = new Date(d.timestamp).getHours();
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const hour12 = h % 12 || 12; 
+                    return `${hour12} ${ampm}`;
+                })
+                .style("font-size", "12px");
 
-            /*
-            g.selectAll(".hour-tick")
-                .data(d3.range(0, 24))
-                .enter()
-                .append("line")
-                .attr("x1", 0)
-                .attr("x2", 0)
-                .attr("y1", secondTickStart)
-                .attr("y2", secondTickStart + secondTickLength)
-                .attr("stroke", "black")
-                .attr("transform", d => `rotate(${twentyfourHours(d)})`);
+    /*
+    g.selectAll(".hour-tick")
+        .data(d3.range(0, 24))
+        .enter()
+        .append("line")
+        .attr("x1", 0)
+        .attr("x2", 0)
+        .attr("y1", secondTickStart)
+        .attr("y2", secondTickStart + secondTickLength)
+        .attr("stroke", "black")
+        .attr("transform", d => `rotate(${twentyfourHours(d)})`);
 
-             */
+     */
 
-        }
-        drawCyclicTree()
+}
+drawCyclicTree()
     }, [data]);
 
-    const changeGranularity = (val) => {
-        //we're starting on 7 days so the granularity change should start from that state
-        setGranularity(val)
-    }
+const changeGranularity = (val) => {
+    //we're starting on 7 days so the granularity change should start from that state
+    setGranularity(val)
+}
 
-    // for legend
-    useEffect(() => {
-        const svg = d3.select(legendRef.current);
-        svg.selectAll("*").remove();
+// for legend
+useEffect(() => {
+    const svg = d3.select(legendRef.current);
+    svg.selectAll("*").remove();
 
-        svg.attr("width", 600).attr("height", 120);
+    svg.attr("width", 600).attr("height", 120);
 
-        // circle legend
-        // define circle scale
-        const maxDelta = d3.max(data.deltaEncoding, d => Math.abs(d.delta));
-        const r = d3.scaleSqrt()
-            .domain([0, maxDelta])
-            .range([0, 12])
-            .clamp(true);
+    // circle legend
+    // define circle scale
+    const maxDelta = d3.max(data.deltaEncoding, d => Math.abs(d.delta));
+    const r = d3.scaleSqrt()
+        .domain([0, maxDelta])
+        .range([0, 12])
+        .clamp(true);
 
-        // pick values to show in legend
-        // const legendValues = [maxDelta, maxDelta / 2, maxDelta / 10].map(Math.round);
-        const legendValues = [50, 30, 10, 1].map(Math.round).sort((a, b) => a - b);
+    // pick values to show in legend
+    // const legendValues = [maxDelta, maxDelta / 2, maxDelta / 10].map(Math.round);
+    const legendValues = [50, 30, 10, 1].map(Math.round).sort((a, b) => a - b);
 
-        const sizeLegend = svg.append("g")
-            .attr("transform", `translate(20, 45)`)
-            .attr("font-family", "sans-serif");
+    const sizeLegend = svg.append("g")
+        .attr("transform", `translate(20, 45)`)
+        .attr("font-family", "sans-serif");
 
-        sizeLegend.append("text")
-            .attr("x", 65)
-            .attr("y", -30)
-            .attr("font-size", "14px")
-            .attr("font-weight", "500")
-            .attr("fill", "#353535")
-            .attr("text-anchor", "middle")
-            .text("Net Carbon Removal (ppm)");
+    sizeLegend.append("text")
+        .attr("x", 65)
+        .attr("y", -30)
+        .attr("font-size", "14px")
+        .attr("font-weight", "500")
+        .attr("fill", "#353535")
+        .attr("text-anchor", "middle")
+        .text("Net Carbon Removal (ppm)");
 
-        const circleSpacing = 70;
+    const circleSpacing = 70;
 
-        // draw circles in a row
-        sizeLegend.selectAll("circle")
-            .data(legendValues)
-            .join("circle")
-            .attr("cx", (d, i) => i * circleSpacing)
-            .attr("cy", 0)
-            .attr("r", d => r(d))
-            .attr("fill", "#5bb335")
-            .attr("opacity", 0.5);
+    // draw circles in a row
+    sizeLegend.selectAll("circle")
+        .data(legendValues)
+        .join("circle")
+        .attr("cx", (d, i) => i * circleSpacing)
+        .attr("cy", 0)
+        .attr("r", d => r(d))
+        .attr("fill", "#5bb335")
+        .attr("opacity", 0.5);
 
-        // labels
-        sizeLegend.selectAll("text.label")
-            .data(legendValues)
-            .join("text")
-            .attr("class", "label")
-            .attr("x", (d, i) => i * circleSpacing)
-            .attr("y", 45)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "14px")
-            .attr("fill", "#353535")
-            .text(d => d);
+    // labels
+    sizeLegend.selectAll("text.label")
+        .data(legendValues)
+        .join("text")
+        .attr("class", "label")
+        .attr("x", (d, i) => i * circleSpacing)
+        .attr("y", 45)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "14px")
+        .attr("fill", "#353535")
+        .text(d => d);
 
-        // sunlight legend
-        const minLight = d3.min(lightData.aggregatedData, d => d.light_in);
-        const maxLight = d3.max(lightData.aggregatedData, d => d.light_in);
-        const colors = ["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"];
-        const gradientWidth = 200;
+    // sunlight legend
+    const minLight = d3.min(lightData.aggregatedData, d => d.light_in);
+    const maxLight = d3.max(lightData.aggregatedData, d => d.light_in);
+    const colors = ["#FFF8E1", "#FFECB3", "#FFE082", "#FFD54F", "#FFCA28"];
+    const gradientWidth = 200;
 
-        const lightLegend = svg.append("g")
-            .attr("transform", `translate(350, 55)`);
+    const lightLegend = svg.append("g")
+        .attr("transform", `translate(350, 55)`);
 
-        const gradient = svg.append("defs")
-            .append("linearGradient")
-            .attr("id", "light-gradient")
-            .attr("x1", "0%")
-            .attr("y1", "0%")
-            .attr("x2", "100%")
-            .attr("y2", "0%");
+    const gradient = svg.append("defs")
+        .append("linearGradient")
+        .attr("id", "light-gradient")
+        .attr("x1", "0%")
+        .attr("y1", "0%")
+        .attr("x2", "100%")
+        .attr("y2", "0%");
 
-        // color gradient
-        gradient.selectAll("stop")
-            .data(colors)
-            .join("stop")
-            .attr("offset", (d, i) => `${(i / (colors.length - 1)) * 100}%`)
-            .attr("stop-color", d => d);
+    // color gradient
+    gradient.selectAll("stop")
+        .data(colors)
+        .join("stop")
+        .attr("offset", (d, i) => `${(i / (colors.length - 1)) * 100}%`)
+        .attr("stop-color", d => d);
 
-        // title
-        lightLegend.append("text")
-            .attr("x", 40)
-            .attr("y", -40)
-            .attr("font-size", "14px")
-            .attr("fill", "#353535")
-            .attr("text-anchor", "middle")
-            .text("Sunlight (lux)");
+    // title
+    lightLegend.append("text")
+        .attr("x", 40)
+        .attr("y", -40)
+        .attr("font-size", "14px")
+        .attr("fill", "#353535")
+        .attr("text-anchor", "middle")
+        .text("Sunlight (lux)");
 
-        // draw strip
-        lightLegend.append("rect")
-            .attr("x", 0)
-            .attr("y", -10)
-            .attr("width", gradientWidth)
-            .attr("height", 15)
-            .style("fill", "url(#light-gradient)");
+    // draw strip
+    lightLegend.append("rect")
+        .attr("x", 0)
+        .attr("y", -10)
+        .attr("width", gradientWidth)
+        .attr("height", 15)
+        .style("fill", "url(#light-gradient)");
 
-        // axis
-        const legendScale = d3.scaleLog()
-            .domain([minLight, maxLight])
-            .range([0, gradientWidth]);
+    // axis
+    const legendScale = d3.scaleLog()
+        .domain([minLight, maxLight])
+        .range([0, gradientWidth]);
 
-        lightLegend.append("g")
-            .attr("transform", "translate(0, 5)")
-            .call(
-                d3.axisBottom(legendScale)
-                    .tickValues([1, 10, 100, 1000])
-                    .tickSize(5)
-            )
-            .call(g => g.select(".domain").remove())
-            .attr("font-size", "12px")
-            .attr("color", "#353535");
-
-
-    }, [data, lightData]);
+    lightLegend.append("g")
+        .attr("transform", "translate(0, 5)")
+        .call(
+            d3.axisBottom(legendScale)
+                .tickValues([1, 10, 100, 1000])
+                .tickSize(5)
+        )
+        .call(g => g.select(".domain").remove())
+        .attr("font-size", "12px")
+        .attr("color", "#353535");
 
 
+}, [data, lightData]);
 
-    return (
-        <div className='flex flex-row w-full h-full gap-12'>
-            {/* left col */}
-            <div className='flex flex-col w-3/4 min-w-0'>
-                {/* legend */}
-                <div className='self-start w-fit flex justify-center items-center'>
-                    <svg ref={legendRef}></svg>
-                </div>
-                {/* timeline vis */}
-                <div className=' overflow-x-scroll'>
-                    <div>
-                        <button id='horizontal' className={'p-2'} onClick={() => setVerticalView(false)}>Horizontal</button>
-                        <button id='vertical' className={'p-2'} onClick={() => setVerticalView(true)}>Vertical</button>
-                    </div>
-                    <div className='space-x-2'>
-                        <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
-                        <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
-                    </div>
-                    {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
-                    <svg ref={horizontalGraphRef}></svg>
-                </div>
+
+
+return (
+    <div className='flex flex-row w-full h-full gap-4'>
+        {/* left col */}
+        <div className='flex flex-col w-2/3 min-w-0'>
+            {/* legend */}
+            <div className='self-start w-fit flex justify-center items-center'>
+                <svg ref={legendRef}></svg>
             </div>
-
-            {/* right col */}
-            <div className='flex-1 min-w-0'>
-                <svg ref={cyclicTreeRef} width="100%" height="100%"></svg>
-                <svg ref={treeRef} width="100%" height="100%"></svg>
+            {/* timeline vis */}
+            <div className=' overflow-x-scroll'>
+                <div>
+                    <button id='horizontal' className={'p-2'} onClick={() => setVerticalView(false)}>Horizontal</button>
+                    <button id='vertical' className={'p-2'} onClick={() => setVerticalView(true)}>Vertical</button>
+                </div>
+                <div className='space-x-2'>
+                    <button id='week' className={granularity === 7 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(7)}>Past 7 Days</button>
+                    <button id='cycle' className={granularity === 24 ? 'bg-gray-300 p-2 rounded-2xl' : 'bg-white p-2 rounded-2xl'} onClick={() => changeGranularity(24)}>Full Cycle</button>
+                </div>
+                {/*verticalView ? <VerticalGraph verticalRef={verticalRef} data={data}/> : <svg ref={horizontalGraphRef}></svg>*/}
+                <svg ref={horizontalGraphRef}></svg>
             </div>
         </div>
-    );
+
+        {/* right col */}
+        <div className='flex-1 min-w-0 flex flex-col'>
+            <div className='p-4'>
+                <p className='text-left text-gray-800 text-lg'>
+                    Select a time range on the timeline to see the net carbon removal during this period visualized in the trees.
+                </p>
+            </div>
+            <div className='flex-1 min-h-0 w-full flex flex-col'>
+                <svg ref={cyclicTreeRef} className='flex-1 w-full h-full'></svg>
+                <svg ref={treeRef} className='flex-1 w-full h-full'></svg>
+            </div>
+
+        </div>
+    </div>
+);
 
 }
 export default BubbleGraphs;
