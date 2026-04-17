@@ -42,7 +42,7 @@ const BubbleGraphs = () => {
             const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
             const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             try {
-                const response = await fetch('04-14-2026.csv')
+                const response = await fetch('04-17-26.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -122,7 +122,7 @@ const BubbleGraphs = () => {
             const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             try{
 
-                const response = await fetch('LightValues-2026-RawValues.csv');
+                const response = await fetch('light-2026.csv');
                 const text = await response.text();
                 Papa.parse(text, {
                     complete: (results) => {

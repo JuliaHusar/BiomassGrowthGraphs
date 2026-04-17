@@ -111,7 +111,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
             .attr("text-anchor", "middle")
             .attr("x", -30)
             .attr("y", -20)
-            .text((Math.round((filteredRecords.reduce((sum, a) => sum + a, 0)) * 100)/100) + "g co2")
+            .text((Math.round((filteredRecords.reduce((sum, a) => sum + a, 0)) * 100)/100) + "co2 reduced")
 
         const twentyfourHours = d3
             .scaleLinear()
