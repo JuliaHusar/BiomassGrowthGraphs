@@ -64,3 +64,23 @@ export function downloadSVG(ref){
     const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
     document.getElementById('svg-download').setAttribute('href', url);
 }
+
+export function cleanUp(svg){
+    svg.selectAll(".cells").remove();
+    svg.selectAll(".week-clip").remove();
+    svg.selectAll(".daypartRect").remove();
+    svg.select(".threshold-line").transition().remove();
+    svg.select(".x-axis").transition().remove();
+    svg.select(".y-axis").transition().remove();
+    svg.select(".input-line").transition().remove();
+    svg.select(".output-line").transition().remove();
+    svg.select(".output-line").transition().remove();
+    svg.select(".selected-area").remove();
+}
+
+export function filterWeekData(selectedRef, data){
+    let sortedArray = [...selectedRef.current].sort();
+    const start = new Date(sortedArray[0]);
+    const end = new Date(sortedArray[1]);
+    return {filteredData: data.filter(d => d.timestamp > start && d.timestamp < end), start, end}
+}

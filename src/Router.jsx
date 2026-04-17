@@ -3,7 +3,7 @@ import TreeVisualization from "./Pages/TreeVisualization.jsx";
 
 const Router = () => {
     return(
-        <BrowserRouter>
+        <BrowserRouter basename="/BiomassGrowthGraphs">
             <Routes>
                 <Route path='/' element={<TreeVisualization/>}/>
             </Routes>

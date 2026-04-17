@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import '../App.css';
 import HourOverTimeCo2 from "../Components/Graphs/HourOverTimeCo2.jsx";
@@ -16,8 +16,8 @@ const TreeVisualization = () => {
     const margin = { top: 20, right: 20, bottom: 50, left: 50 };
     useEffect(() => {
         const getCSV = async () => {
-            try{
-                const response = await fetch ('/2026-data.csv')
+            try {
+                const response = await fetch('/2026-data.csv')
                 /*
                 const response = await axios.post('http://localhost:3000/api/getData',
                     {
@@ -37,10 +37,10 @@ const TreeVisualization = () => {
                         results.data.pop();
                         setHistoricData(results.data)
                     },
-                    header:true,
+                    header: true,
                     dynamicTyping: true,
                 });
-            } catch (error){
+            } catch (error) {
                 console.log(error)
             }
         }
@@ -221,25 +221,47 @@ const TreeVisualization = () => {
     };
 
     return (
-        <div className='border-2 border-black rounded-2xl h-full w-3/4 flex flex-col relative'>
-            <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
-            {selectedData && (
-                <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center'>
-                    <div className='bg-white p-4 rounded-lg'>
-                        <h2 className='text-lg font-semibold mb-2'>Data Details: {selectedData.date}</h2>
-                        <button onClick={closeModal} className='mt-4 bg-gray-200 px-4 py-2 rounded'>Close</button>
-                    </div>
+        <div className='flex flex-col items-start w-full py-8'>
+            <div className='flex flex-col items-start w-full py-1'>
+                {/* explanation and legend */}
+                <div className='w-full text-left text-gray-800 text-lg space-y-4 leading-relaxed'>
+                    <p>We are growing <strong>microalgae</strong> in the Bio-Blades that <strong>absorb carbon dioxide (CO<sub>2</sub>)</strong>
+                        &nbsp;from the air through photosynthesis.</p>
+                    <p>Although the microalgae also release CO<sub>2</sub> into the air through respiration, they end up absorbing more carbon
+                        than they release. </p>
+                    <p className='leading-loose'>This visualization shows how the Bio-Blades’ carbon&nbsp;
+                        {/* in-line legend */}
+                        <span className="inline-block w-5 h-[3px] bg-[#62A247] align-middle mx-1"></span> 
+                        input
+                        and&nbsp;
+                        <span className="inline-block w-5 h-[3px] bg-[#9FBC93] align-middle mx-1"></span>
+                        output change over time, and more importantly, the&nbsp;
+                        <span className="inline-block w-3 h-3 bg-[#5bb335] opacity-70 rounded-full align-middle mx-1"></span>
+                        <strong>net amount of CO<sub>2</sub> they help to remove</strong> from the air. </p>
                 </div>
-            )}
 
-            {/*
+            </div>
+            <div className='h-full w-full flex flex-col relative p-6'>
+                <div id='tooltip' className='absolute bg-white text-black p-2 border border-gray-400 rounded'></div>
+                {selectedData && (
+                    <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center'>
+                        <div className='bg-white p-4 rounded-lg'>
+                            <h2 className='text-lg font-semibold mb-2'>Data Details: {selectedData.date}</h2>
+                            <button onClick={closeModal} className='mt-4 bg-gray-200 px-4 py-2 rounded'>Close</button>
+                        </div>
+                    </div>
+                )}
+
+                {/*
             <LineGraph historicData={historicData} width={width} height={height} margin={margin}/>
             <WaffleGraph historicData={historicData} width={width} height={height} margin={margin}/>
             <UnitVis historicData={historicData} width={width} height={height} margin={margin}/>
             <ScatterBands historicData={historicData} width={width} height={height} margin={margin}/>
             */}
-            <BubbleGraphs/>
+                <BubbleGraphs />
+            </div>
         </div>
+
     );
 }
 export default TreeVisualization;

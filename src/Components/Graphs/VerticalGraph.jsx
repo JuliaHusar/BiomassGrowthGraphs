@@ -1,11 +1,13 @@
 import {useEffect} from "react";
 import * as d3 from "d3";
 
-const VerticalGraph = ({verticalRef, data, constraints}) => {
+const VerticalGraph = ({verticalRef, data}) => {
 
     useEffect(() => {
         const draw = () => {
             if (data.timeData.length === 0) return;
+            const constraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+
 
             const svg = d3.select(verticalRef.current);
             svg.selectAll("*").remove();
@@ -26,7 +28,7 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
             const x = d3.scaleUtc(d3.extent(data.timeData, d => d.timestamp), [constraints.marginLeft, constraints.width - constraints.marginRight]);
             // start y-axis from 300 to make vis larger and patterns clearer
             const y = d3.scaleLinear([300, d3.max(data.timeData, d => d.scd30_co2_ppm_input)], [constraints.height - constraints.marginTop, constraints.marginBottom])
-            const r = d3.scaleLinear([0, d3.max(data.aggregatedData, d => Math.abs(d.delta))], [0, 30]).clamp(true);
+            const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 30]).clamp(true);
             const line = d3.line()
                 .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
                 .x(d => x(d.timestamp))
@@ -55,7 +57,7 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
             );
 
             // x axis
-            /*
+
             svg.append("g")
                 .attr("transform", `translate(0,${constraints.height - constraints.marginBottom})`)
                 .call(
@@ -81,7 +83,9 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
                     .attr("stroke-width", 2.5)
                 );
 
-             */
+
+
+            // what if we had like a sort of look up container where people could choose a date that they wanted to compare??? if we're really looking at user needs here
 
             const row = d3.scaleBand()
                 .domain([...dayBuckets.keys()])
@@ -162,7 +166,7 @@ const VerticalGraph = ({verticalRef, data, constraints}) => {
 
         }
         draw();
-    }, [data]);
+    }, [data, verticalRef]);
 
     return(
         <div>
