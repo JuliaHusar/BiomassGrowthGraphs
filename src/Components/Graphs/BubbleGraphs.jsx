@@ -42,7 +42,7 @@ const BubbleGraphs = () => {
             const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
             const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
             try {
-                const response = await fetch('/04-14-2026.csv')
+                const response = await fetch('04-14-2026.csv')
                 const text = await response.text();
 
                 Papa.parse(text, {
@@ -1178,7 +1178,7 @@ const BubbleGraphs = () => {
     return (
         <div className='flex flex-row w-full h-full gap-4'>
             {/* left col */}
-            <div className='flex flex-col w-2/3 min-w-0'>
+            <div className='flex flex-col w-7/12 min-w-0'>
                 {/* legend */}
                 <div className='self-start w-fit flex justify-center items-center'>
                     <svg ref={legendRef}></svg>
@@ -1203,7 +1203,7 @@ const BubbleGraphs = () => {
                 </div>
             </div>
             {/* right col */}
-            <div className='flex-1 w-full flex flex-col overflow-scroll'>
+            <div className='w-2/5 flex flex-col'>
                 <div className='p-4 space-y-4'>
                     {/* <p className='text-left text-gray-800 text-lg'>
                         One Bio-Blade provides annual carbon removal equivalent to <strong>one maple tree</strong>.
@@ -1214,11 +1214,9 @@ const BubbleGraphs = () => {
                         Select a time range on the timeline to see the net carbon removal during this period visualized in the trees.
                     </p>
                 </div>
-                <div className='w-full flex flex-col overflow-scroll'>
-                    <svg ref={cyclicTreeRef} className='w-full h-full overflow-scroll'></svg>
-                    <svg ref={treeRef} className='w-full h-full overflow-scroll'></svg>
+                <div className='overflow-scroll'>
+                    <svg width="100%" height="100%" ref={cyclicTreeRef}></svg>
                 </div>
-
             </div>
 
     </div>

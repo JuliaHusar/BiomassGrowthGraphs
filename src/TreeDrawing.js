@@ -1,8 +1,8 @@
 import * as d3 from 'd3';
 export const drawCyclicTree = async (cyclicTreeRef, data) => {
-    const clockRadius = 120;
-    const treeHeight = 500;
-    const treeWidth = 500;
+    const clockRadius = 80;
+    const treeHeight = 200;
+    const treeWidth = 200;
     const centerY = treeHeight / 2;
     const centerX = treeWidth / 2;
     const top = centerY + 70;
@@ -23,116 +23,115 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
         { x: right, y: bottom }
     ];
 
-    // const treeHeight = 500;
-    // const treeWidth = 500;
-    // const centerY = treeHeight / 2;
-    // const centerX = treeWidth / 2;
-    // const top = centerY + 50;
-    // const bottom = centerY + 240;
-    // const left = centerX - 50;
-    // const right = centerY + 50;
-    // const clockRadius = 120;
-    /*
-    const secondTickStart = clockRadius - 20;
-    const secondTickLength = -10;
-    const labelRadius = clockRadius + 16;
-    const secondLabelYOffset = 5;
-
-     */
     const radians = Math.PI / 180
 
-    // const treeLineData = [
-    //     { x: left + 20, y: top },
-    //     { x: right - 20, y: top },
-    //     { x: right, y: bottom },
-    //     { x: left, y: bottom },
-    //     { x: left + 20, y: top },
-    // ]
+    const dates = data.map((d) => new Date(d.timestamp).getDate())
+    const r = d3.scaleSqrt([0, d3.max(data, d => Math.abs(d.delta))], [0, 12]).clamp(true)
+    const treeBuckets = d3.group(
+        data,
+        d => {
+            const t = d.timestamp;
+            const dayStart = new Date(t);
+            dayStart.setUTCDate(dayStart.getUTCDate())
+            dayStart.setHours(0)
+            return dayStart.toISOString().slice(0, 10)
+        }
+    )
+    const col = d3.scaleBand()
+        .domain([...treeBuckets.keys()])
+        .range([0, 200])
 
     const svg = d3.select(cyclicTreeRef.current);
     svg.selectAll("*").remove();
     svg
-        .attr('width', treeHeight)
-        .attr('height', 1000);
+        .attr('width', 2000)
+        .attr('height', 2000);
     const treeContainer = svg.append("g").attr("class", "tree-container")
+    const trees = treeContainer.selectAll('g.tree')
+        .data([...treeBuckets.entries()])
+        .join(enter => enter.append('g').attr('class', 'tree'))
+        .attr('transform', ([day]) => `translate( ${col(day)*3}, 100)`);
+    trees.each(function ([day, records]){
+        const tree = d3.select(this);
 
-    var treeLine = d3.line()
-        .x((p) => p.x)
-        .y((p) => p.y)
-        .curve(d3.curveBasis)
+        var treeLine = d3.line()
+            .x((p) => p.x)
+            .y((p) => p.y)
+            .curve(d3.curveBasis)
 
-    // left curve for tree trunk
-    treeContainer.append("path")
-        .datum(leftCurveData)
-        .attr("d", treeLine)
-        .attr("fill", "none")
-        .attr("stroke", "#5C4033")
-        .attr("stroke-width", 2)
-        .attr("transform", `translate(0, 65)`);
+        // left curve for tree trunk
+        tree.append("path")
+            .datum(leftCurveData)
+            .attr("d", treeLine)
+            .attr("fill", "none")
+            .attr("stroke", "#5C4033")
+            .attr("stroke-width", 2)
+            .attr("transform", `translate(0, 0)`);
 
-    // right curve
-    treeContainer.append("path")
-        .datum(rightCurveData)
-        .attr("d", treeLine)
-        .attr("fill", "none")
-        .attr("stroke", "#5C4033")
-        .attr("stroke-width", 2)
-        .attr("transform", `translate(0, 65)`);
-    const r = d3.scaleSqrt([0, d3.max(data, d => Math.abs(d.delta))], [0, 12]).clamp(true)
-    // svg.append("rect")
-    //     .attr("x", left)
-    //     .attr("y", centerY - 20)
-    //     .attr("width", 100)
-    //     .attr("height", 100)
-    //     .attr("fill", "white");
+        // right curve
+        tree.append("path")
+            .datum(rightCurveData)
+            .attr("d", treeLine)
+            .attr("fill", "none")
+            .attr("stroke", "#5C4033")
+            .attr("stroke-width", 2)
+            .attr("transform", `translate(0, 0)`);
+        // svg.append("rect")
+        //     .attr("x", left)
+        //     .attr("y", centerY - 20)
+        //     .attr("width", 100)
+        //     .attr("height", 100)
+        //     .attr("fill", "white");
 
-    treeContainer.append("g")
-        .selectAll("path")
-        .data(data)
-        .enter()
-        .append("path")
-        .attr("fill", "#69b3a2")
-        .attr("d", d3.arc()
-            .innerRadius(clockRadius))
+        tree.append("g")
+            .selectAll("path")
+            .data(records)
+            .enter()
+            .append("path")
+            .attr("fill", "#69b3a2")
+            .attr("d", d3.arc()
+                .innerRadius(clockRadius))
+            .attr("stroke", "black")
 
-    const g = treeContainer.append("g")
-        .attr("transform", `translate(${centerX}, ${centerY - 20})`);
+        const g = tree.append("g")
+            .attr("transform", `translate(${centerX}, ${centerY - 20})`);
 
-    const twentyfourHours = d3
-        .scaleLinear()
-        .range([0, 360])
-        .domain([0, 24]);
+        const twentyfourHours = d3
+            .scaleLinear()
+            .range([0, 360])
+            .domain([0, 24]);
 
-    const color = d3.scaleSequential()
-        .domain([0, d3.max(data, d => d.delta)])
-        .interpolator(d3.interpolateGreens);
+        const color = d3.scaleSequential()
+            .domain([0, d3.max(records, d => d.delta)])
+            .interpolator(d3.interpolateGreens);
 
-    g.selectAll(".hour-data")
-        .data(data)
-        .enter()
-        .append("circle")
-        .attr("cx", d => clockRadius * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
-        .attr("cy", d => -clockRadius * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
-        .attr("r", d => r(d.delta))
-        .attr("fill", d => color(d.delta))
-        .attr("opacity", 0.7)
+        g.selectAll(".hour-data")
+            .data(records)
+            .enter()
+            .append("circle")
+            .attr("cx", d => clockRadius * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
+            .attr("cy", d => -clockRadius * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+            .attr("r", d => r(d.delta))
+            .attr("fill", d => color(d.delta))
+            .attr("opacity", 0.7)
 
 
-    g.selectAll(".hour-label")
-        .data(data)
-        .enter()
-        .append("text")
-        .attr("text-anchor", "middle")
-        .attr("x", d => 150 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
-        .attr("y", d => -150 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
-        .text(d => new Date(d.timestamp).getHours() + ":00")
-        .text(d => { // AM PM format for shorter labels
-            const h = new Date(d.timestamp).getHours();
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            const hour12 = h % 12 || 12;
-            return `${hour12} ${ampm}`;
-        })
-        .style("font-size", "12px");
+        g.selectAll(".hour-label")
+            .data(records)
+            .enter()
+            .append("text")
+            .attr("text-anchor", "middle")
+            .attr("x", d => 110 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
+            .attr("y", d => -110 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+            .text(d => new Date(d.timestamp).getHours() + ":00")
+            .text(d => { // AM PM format for shorter labels
+                const h = new Date(d.timestamp).getHours();
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const hour12 = h % 12 || 12;
+                return `${hour12} ${ampm}`;
+            })
+            .style("font-size", "12px");
+    })
 
     /*
     g.selectAll(".hour-tick")

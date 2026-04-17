@@ -221,8 +221,8 @@ const TreeVisualization = () => {
     };
 
     return (
-        <div className='flex flex-col items-start w-full gap-8 py-8 px-4'>
-            <div className='flex flex-col items-start w-full gap-8 py-1 px-4'>
+        <div className='flex flex-col items-start w-full py-8'>
+            <div className='flex flex-col items-start w-full py-1'>
                 {/* explanation and legend */}
                 <div className='w-full text-left text-gray-800 text-lg space-y-4 leading-relaxed'>
                     <p>We are growing <strong>microalgae</strong> in the Bio-Blades that <strong>absorb carbon dioxide (CO<sub>2</sub>)</strong>
