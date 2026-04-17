@@ -9,7 +9,7 @@ const DataViewer = ({selectedDaypartRef, selectedWeekPartRef, data, granularity}
         <div>
             {granularity === 7 ?
                 <div>
-                    {selectedData.start.toString()}{selectedData.end.toString()}
+                    Start: {selectedData.start.toString()} End: {selectedData.end.toString()}
                 </div>
                     /*
                 <div>

@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
 export const drawCyclicTree = async (cyclicTreeRef, data) => {
-    const clockRadius = 80;
+    const clockRadius = 100;
     const treeHeight = 200;
     const treeWidth = 200;
     const centerY = treeHeight / 2;
@@ -42,6 +42,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
         .range([0, 200])
 
     const svg = d3.select(cyclicTreeRef.current);
+
     svg.selectAll("*").remove();
     svg
         .attr('width', 2000)
@@ -50,13 +51,13 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
     const trees = treeContainer.selectAll('g.tree')
         .data([...treeBuckets.entries()])
         .join(enter => enter.append('g').attr('class', 'tree'))
-        .attr('transform', ([day]) => `translate( ${col(day)*3}, 100)`);
+        .attr('transform', ([day]) => `translate( ${col(day)*4}, 100)`);
     trees.each(function ([day, records]){
         const tree = d3.select(this);
 
         var treeLine = d3.line()
-            .x((p) => p.x)
-            .y((p) => p.y)
+            .x((p) => p.x/1.5)
+            .y((p) => p.y/1.5)
             .curve(d3.curveBasis)
 
         // left curve for tree trunk
@@ -66,7 +67,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
             .attr("fill", "none")
             .attr("stroke", "#5C4033")
             .attr("stroke-width", 2)
-            .attr("transform", `translate(0, 0)`);
+            .attr("transform", `translate(70, 0)`);
 
         // right curve
         tree.append("path")
@@ -75,14 +76,14 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
             .attr("fill", "none")
             .attr("stroke", "#5C4033")
             .attr("stroke-width", 2)
-            .attr("transform", `translate(0, 0)`);
+            .attr("transform", `translate(70, 0)`);
         // svg.append("rect")
         //     .attr("x", left)
         //     .attr("y", centerY - 20)
         //     .attr("width", 100)
         //     .attr("height", 100)
         //     .attr("fill", "white");
-
+        /*
         tree.append("g")
             .selectAll("path")
             .data(records)
@@ -91,10 +92,26 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
             .attr("fill", "#69b3a2")
             .attr("d", d3.arc()
                 .innerRadius(clockRadius))
-            .attr("stroke", "black")
+
+         */
 
         const g = tree.append("g")
-            .attr("transform", `translate(${centerX}, ${centerY - 20})`);
+            .attr("transform", `translate(${centerX+70}, ${centerY - 40})`);
+        let filteredRecords = records.map((d) => d.delta)
+        console.log(filteredRecords)
+        g.append("circle")
+            .attr("cx", -30)
+            .attr("cy", -40)
+            .attr("r", clockRadius/1.2)
+            .attr("fill", "none")
+            .attr("stroke", "#ccc")
+            .attr("stroke-dasharray", "4,4")
+            .style("pointer-events", "none");
+        g.append("text")
+            .attr("text-anchor", "middle")
+            .attr("x", -30)
+            .attr("y", -20)
+            .text((Math.round((filteredRecords.reduce((sum, a) => sum + a, 0)) * 100)/100) + "g co2")
 
         const twentyfourHours = d3
             .scaleLinear()
@@ -109,20 +126,19 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
             .data(records)
             .enter()
             .append("circle")
-            .attr("cx", d => clockRadius * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
-            .attr("cy", d => -clockRadius * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+            .attr("cx", d => clockRadius/1.2 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians)-30)
+            .attr("cy", d => -clockRadius/1.2 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians)-40)
             .attr("r", d => r(d.delta))
             .attr("fill", d => color(d.delta))
             .attr("opacity", 0.7)
-
 
         g.selectAll(".hour-label")
             .data(records)
             .enter()
             .append("text")
             .attr("text-anchor", "middle")
-            .attr("x", d => 110 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians))
-            .attr("y", d => -110 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) + 5)
+            .attr("x", d => clockRadius * 1.1 * Math.sin(twentyfourHours(new Date(d.timestamp).getHours()) * radians)-30)
+            .attr("y", d => -clockRadius * 1.1 * Math.cos(twentyfourHours(new Date(d.timestamp).getHours()) * radians) -40)
             .text(d => new Date(d.timestamp).getHours() + ":00")
             .text(d => { // AM PM format for shorter labels
                 const h = new Date(d.timestamp).getHours();
@@ -131,6 +147,7 @@ export const drawCyclicTree = async (cyclicTreeRef, data) => {
                 return `${hour12} ${ampm}`;
             })
             .style("font-size", "12px");
+
     })
 
     /*
