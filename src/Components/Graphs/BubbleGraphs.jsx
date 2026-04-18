@@ -5,6 +5,7 @@ import VerticalGraph from "./VerticalGraph.jsx";
 import {cleanUp, filterWeekData} from "../Math/HelperFunctions.js";
 import DataViewer from "../DataViewer.jsx";
 import {drawStandardTree, drawCyclicTree} from "../../TreeDrawing.js";
+import {getAirQuality, getLightData} from "../../LoadData.js";
 
 const BubbleGraphs = () => {
     const horizontalGraphRef = useRef();
@@ -19,7 +20,7 @@ const BubbleGraphs = () => {
     //selectedView
     const [verticalView, setVerticalView] = useState(false);
     const [granularity, setGranularity] = useState(7); // granularity is being set in terms of days. we can start with 7 and then expand as needed
-    const [data, setData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
+    const [airData, setAirData] = useState({ timeData: [], deltaEncoding: [], weeklyData: [], aggregatedWeeklyData: [], fifteenMinuteAirQualityAggregation: [], aggregatedDayPartDelta: [] });
     const [lightData, setLightData] = useState({aggregatedData: [], cycleAggregatedData: []});
     const [selectedDaypart, setSelectedDaypart] = useState([])
     const [selectedWeekPart, setSelectedWeekPart] = useState([])
@@ -38,165 +39,26 @@ const BubbleGraphs = () => {
     };
 
     useEffect(() => {
-        const getCSV = async () => {
-            const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
-            const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            try {
-                const response = await fetch('04-17-26.csv')
-                const text = await response.text();
-
-                Papa.parse(text, {
-                    complete: (results) => {
-                        //This size of timeData var is dependent on whatever the cutoff is
-                        // which means that at the moment it will be one cycle (24 days)
-                        const timeData = results.data
-                            .map(d => ({ ...d, timestamp: new Date(d.timestamp) }))
-                            .filter(d => d.timestamp >= cutoff)
-                            .filter(d => d.scd30_co2_ppm_input !== 0)
-                            .filter(d => d.scd30_co2_ppm_output !== 0)
-                        const weeklyData = timeData.filter((d) => d.timestamp >= weekCutoff) //One week worth of raw input/output values
-                        const preparedData = (interval = 1) => timeData.filter((val) => new Date(val.timestamp).getHours()).reduce((accumulator, val) => {
-                            //using hour key here, we don't want the first hour bcs offset can give us problems
-                            // 1 interval is for 1 week while 6 interval is cycle (6*4)
-                            //TODO: fix bug that could exclude certain hours that don't have a hh:mm for 00
-                            const date = new Date(val.timestamp);
-                            const bucketHour = Math.floor(date.getHours() / interval) * interval;
-                            date.setHours(bucketHour, 0, 0, 0);
-                            const k = date.toISOString();
-                            if (!accumulator[k]) {
-                                accumulator[k] = { timestamp: date, sum: 0, count: 0, output: [], reduction: [] };
-                            }
-                            accumulator[k].sum += val.scd30_co2_ppm_input - val.scd30_co2_ppm_output;
-                            accumulator[k].output.push(parseInt(val.scd30_co2_ppm_input));
-                            accumulator[k].reduction.push(parseInt(val.scd30_co2_ppm_input) - parseInt(val.scd30_co2_ppm_output));
-                            accumulator[k].count++;
-                            return accumulator;
-                        }, {});
-                        const aggregatedDelta = Object.values(preparedData(1)).map(({ timestamp, sum, count, output, reduction }) => ({
-                            timestamp,
-                            delta: sum / count,
-                            output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
-                        })); // all data values from one cycle (7 days)
-                        const aggregatedDayPartDelta = Object.values(preparedData(6)).map(({ timestamp, sum, count, output, reduction }) => ({
-                            timestamp,
-                            delta: sum / count,
-                            output: (() => {return (output[output.length % 2]) - reduction[reduction.length % 2]/2})()
-                        })); //using for the cycle visualization
-                        const aggregatedWeeklyDelta = aggregatedDelta.filter((d) => d.timestamp >= weekCutoff) // one week's worth of "delta" data that is used for representing the bubble encoding
-
-                        const aggregationFunction = (inputArray, aggregationInterval) => {
-                            return inputArray.reduce((acc, d) => {
-                                const intervalMs = aggregationInterval * 60 * 1000;
-                                const offset = new Date().getTimezoneOffset() * 60 * 1000;
-                                const bucketKey = Math.floor((d.timestamp - offset) / intervalMs) * intervalMs + offset;
-                                if (!acc[bucketKey]) {
-                                    acc[bucketKey] = { timestamp: new Date(bucketKey), inputSum: 0, outputSum:0, count: 0 };
-                                }
-                                acc[bucketKey].inputSum += parseInt(d.scd30_co2_ppm_input);
-                                acc[bucketKey].outputSum += parseInt(d.scd30_co2_ppm_output);
-                                acc[bucketKey].count += 1;
-                                return acc;
-                            }, {});
-                        }
-                        const result = Object.values(aggregationFunction(weeklyData, 30)).map(({ timestamp, inputSum, outputSum, count }) => ({
-                            timestamp,
-                            scd30_co2_ppm_input: inputSum / count,
-                            scd30_co2_ppm_output: outputSum / count,
-                        }));
-                        const calendarResult = Object.values(aggregationFunction(timeData, 30)).map(({ timestamp, inputSum, outputSum, count }) => ({
-                            timestamp,
-                            scd30_co2_ppm_input: inputSum / count,
-                            scd30_co2_ppm_output: outputSum / count,
-                        }));
-                        setData({ timeData: calendarResult, deltaEncoding: aggregatedDelta, weeklyData: result, aggregatedWeeklyData: aggregatedWeeklyDelta, fifteenMinuteAirQualityAggregation: result, aggregatedDayPartDelta});
-                    },
-                    header: true,
-                    dynamicTyping: true,
-                })
-            } catch (error) {
-                console.log(error)
-            }
-        }
-        const getLightData = async () => {
-            const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
-            const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            try{
-
-                const response = await fetch('light-2026.csv');
-                const text = await response.text();
-                Papa.parse(text, {
-                    complete: (results) => {
-                        const lightData = results.data
-                            .map(d => ({ ...d, timestamp: new Date(d.timestamp)}))
-                            .filter(d => d.timestamp >= weekCutoff)
-                        const aggregatedLightData = results.data
-                            .map(d => ({ ...d, timestamp: new Date(d.timestamp)}))
-                            .filter(d => d.timestamp >= cutoff)
-                        const preparedData = (interval = 1) => lightData
-                            .reduce((accumulator, val) => {
-                                const date = new Date(val.timestamp);
-                                const bucketHour = Math.floor(date.getUTCHours() / interval) * interval;
-                                date.setUTCHours(bucketHour, 0, 0, 0);
-                                const k = date.toISOString();
-                                if (!accumulator[k]) {
-                                    accumulator[k] = { timestamp: date, sum: 0, count: 0 };
-                                }
-                                accumulator[k].sum += val.left_photometric;
-                                accumulator[k].count++;
-                                return accumulator;
-                            }, {});
-                        const preparedAggregatedData = (interval = 1) => aggregatedLightData
-                            .reduce((accumulator, val) => {
-                                const date = new Date(val.timestamp);
-                                const bucketHour = Math.floor(date.getUTCHours() / interval) * interval;
-                                date.setUTCHours(bucketHour, 0, 0, 0);
-                                const k = date.toISOString();
-                                if (!accumulator[k]) {
-                                    accumulator[k] = { timestamp: date, sum: 0, count: 0 };
-                                }
-                                accumulator[k].sum += val.left_photometric;
-                                accumulator[k].count++;
-                                return accumulator;
-                            }, {});
-                        const aggregatedData = Object.values(preparedData(1)).map(({ timestamp, sum, count}) => ({
-                            timestamp,
-                            light_in: (() => {return Math.sign(sum/count) === -1 ? 1 : sum/count})()
-                        })); // all data values from one week (7 days)
-                        const cycleAggregatedData = Object.values(preparedAggregatedData(1)).map(({ timestamp, sum, count}) => ({
-                            timestamp,
-                            light_in: (() => {return Math.sign(sum/count) === -1 ? 1 : sum/count})()
-                        })); // all data values from one cycle (24 days)
-                        console.log(aggregatedData)
-                        setLightData({aggregatedData, cycleAggregatedData})
-                    },
-                    header: true,
-                    dynamicTyping: true,
-                })
-
-            } catch (error){
-                console.log(error)
-            }
-        }
-        getCSV();
-        getLightData();
+        getAirQuality().then((r) => setAirData(r))
+        getLightData().then((r) => setLightData(r))
     }, []);
 
     const scales = useMemo(() => {
-        if (data.timeData.length === 0) return;
+        if (airData.timeData.length === 0) return;
         const weeklyConstraints = {width: 1000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
         const hasNext = new Set(
-            data.weeklyData
+            airData.weeklyData
                 .slice(0, -1)
-                .filter((d, i) => data.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
+                .filter((d, i) => airData.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
                 .map(d => d.timestamp)
         );
-        hasNext.add(data.weeklyData.at(-1).timestamp);
+        hasNext.add(airData.weeklyData.at(-1).timestamp);
 
-        const x = d3.scaleUtc(d3.extent(data.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
+        const x = d3.scaleUtc(d3.extent(airData.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
         // start y-axis from 300 to make vis larger and patterns clearer
-        const y = d3.scaleLinear([350, d3.max(data.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+        const y = d3.scaleLinear([350, d3.max(airData.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
         // encode delta with circle area
-        const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
+        const r = d3.scaleSqrt([0, d3.max(airData.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
         const line = d3.line()
             .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
             .x(d => x(d.timestamp))
@@ -215,7 +77,7 @@ const BubbleGraphs = () => {
 
         // for formatting time format on x-axis
         return { x, y, r, line, outputLine };
-    }, [data.timeData.length, data.weeklyData, data.deltaEncoding, maxGap]);
+    }, [airData.timeData.length, airData.weeklyData, airData.deltaEncoding, maxGap]);
 
     useEffect(() => {
         if (!scales) return;
@@ -314,7 +176,7 @@ const BubbleGraphs = () => {
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#62a247")
                 .attr("stroke-width", 1)
-                .attr("d", line(data.weeklyData))
+                .attr("d", line(airData.weeklyData))
                 .attr("class", "input-line")
 
             g.append("path")
@@ -323,7 +185,7 @@ const BubbleGraphs = () => {
                 .attr("clip-path", "url(#clip)")
                 .attr("stroke", "#9FBC93")
                 .attr("stroke-width", 1)
-                .attr("d", outputLine(data.weeklyData))
+                .attr("d", outputLine(airData.weeklyData))
                 .attr("class", "output-line")
             /*
             g.append("path")
@@ -340,7 +202,7 @@ const BubbleGraphs = () => {
             g.append("g")
                 .attr("class", "sequestration")
                 .selectAll("circle")
-                .data(data.aggregatedWeeklyData)
+                .data(airData.aggregatedWeeklyData)
                 .join("circle")
                 .attr("cx", d => x(d.timestamp))
                 .attr("cy", d => y(d.output))
@@ -409,7 +271,7 @@ const BubbleGraphs = () => {
                 })
         }
         const verticalDraw = () => {
-            if (data.timeData.length === 0) return;
+            if (airData.timeData.length === 0) return;
             const constraints = {width: 1000, height: 750, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
             //TODO: add spacing + format these small multiples neatly
             //TODO: add cursor that shows comparisons between different days in a way that is intuitive.
@@ -430,14 +292,14 @@ const BubbleGraphs = () => {
 
             const maxGap = 15 * 60 * 1000;
             const hasNext = new Set(
-                data.weeklyData
+                airData.weeklyData
                     .slice(0, -1)
-                    .filter((d, i) => data.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
+                    .filter((d, i) => airData.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
                     .map(d => d.timestamp)
             );
-            hasNext.add(data.weeklyData.at(-1).timestamp);
+            hasNext.add(airData.weeklyData.at(-1).timestamp);
 
-            const r = d3.scaleSqrt([0, d3.max(data.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
+            const r = d3.scaleSqrt([0, d3.max(airData.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
 
             // for formatting time format on x-axis
             const customTimeFormat = (date) => {
@@ -448,7 +310,7 @@ const BubbleGraphs = () => {
                 }
             };
             let dayBuckets = d3.group(
-                data.weeklyData,
+                airData.weeklyData,
                 d => new Date(d.timestamp).toISOString().slice(0, 10)
             );
             // vertical line at date boundaries. commenting out for simplicity here
@@ -572,7 +434,7 @@ const BubbleGraphs = () => {
                 cell.append("g")
                     .attr("class", "sequestration")
                     .selectAll("circle")
-                    .data(data.aggregatedWeeklyData.filter((d) => new Date(d.timestamp).getHours() !== 19)) //bcs of utc weirdness, this has to be 19
+                    .data(airData.aggregatedWeeklyData.filter((d) => new Date(d.timestamp).getHours() !== 19)) //bcs of utc weirdness, this has to be 19
                     .join("circle")
                     .attr("cx", d => xLocal(d.timestamp))
                     .attr("cy", d => newY(d.output))
@@ -613,8 +475,8 @@ const BubbleGraphs = () => {
                     const timestamp = xLocal.invert(mouseX);
                     const utcDate = new Date(timestamp).setHours(new Date(timestamp).getHours()+4)
                     const bisect = d3.bisector(d => d.timestamp).left;
-                    const index = bisect(data.weeklyData, timestamp);
-                    const d = data.weeklyData[index];
+                    const index = bisect(airData.weeklyData, timestamp);
+                    const d = airData.weeklyData[index];
 
                     if (d) {
                         cellRule
@@ -644,7 +506,7 @@ const BubbleGraphs = () => {
 
         !verticalView ? draw() : verticalDraw()
 
-    }, [data, scales, granularity, verticalView, lightData]);
+    }, [airData, scales, granularity, verticalView, lightData]);
 
     useEffect(() => {
         if (!horizontalGraphRef.current) return;
@@ -673,7 +535,7 @@ const BubbleGraphs = () => {
             }
             if (selectedDaypartRef.current.length === 2) {
                 svg.selectAll(".selected-area").remove();
-                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
+                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, airData.weeklyData)
                 if (filteredData.length === 0) return;
                 const { x, y } = scales;
 
@@ -699,7 +561,7 @@ const BubbleGraphs = () => {
                     .style("stroke-width", "2px")
                     .style("opacity", 1)
                 svg.selectAll(".selected-cycle-area").remove();
-                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, data.timeData)
+                const {filteredData, start, end} = filterWeekData(selectedDaypartRef, airData.timeData)
                 if (filteredData.length === 0) return;
                 const { x, y } = scales;
             const constraints = { height: 500, marginTop: 20, marginBottom: 30 };
@@ -715,14 +577,14 @@ const BubbleGraphs = () => {
                     .attr("stroke-width", 1)
                     .attr("pointer-events", "none");
         }
-    }, [data.weeklyData, scales, selectedDaypart, granularity, selectedWeekPart, data.timeData]);
+    }, [airData.weeklyData, scales, selectedDaypart, granularity, selectedWeekPart, airData.timeData]);
 
 
     useEffect(() => {
         const cycleConstraints = {width: 1000, height: 200, marginTop:20, marginRight: 50, marginBottom: 50, marginLeft: 40}
 
         if (!scales || !horizontalGraphRef.current) return;
-        if (data.weeklyData.length === 0) return;
+        if (airData.weeklyData.length === 0) return;
         if (granularity === 7) return;
         const weeklyConstraints = { width: 2000, height: 500, marginTop: 20, marginRight: 30, marginBottom: 30, marginLeft: 40 }
         const svg = d3.select(horizontalGraphRef.current);
@@ -732,8 +594,8 @@ const BubbleGraphs = () => {
         svg.selectAll(".light-day").remove();
 
         const constraints = granularity === 24 ? cycleConstraints : weeklyConstraints;
-        const activeData = granularity === 24 ? data.timeData : data.weeklyData;
-        const activeAggregated = granularity === 24 ? data.aggregatedDayPartDelta : data.aggregatedWeeklyData; //if cycle is selected we'll map the delta encoding for all 24 days
+        const activeData = granularity === 24 ? airData.timeData : airData.weeklyData;
+        const activeAggregated = granularity === 24 ? airData.aggregatedDayPartDelta : airData.aggregatedWeeklyData; //if cycle is selected we'll map the delta encoding for all 24 days
 
         const newY = d3.scaleLinear(
             [350, d3.max(activeData, d => d.scd30_co2_ppm_input)],
@@ -1040,17 +902,17 @@ const BubbleGraphs = () => {
             svg.selectAll(".cells").transition().remove();
             svg.selectAll(".day-clip").transition().remove();
         }
-    }, [data.deltaEncoding, data.aggregatedWeeklyData, data.timeData, data.weeklyData, granularity, maxGap, scales, data.aggregatedDayPartDelta, lightData]);
+    }, [airData.deltaEncoding, airData.aggregatedWeeklyData, airData.timeData, airData.weeklyData, granularity, maxGap, scales, airData.aggregatedDayPartDelta, lightData]);
 
     //logic for drawing trees
     useEffect(() => {
         const weeklyConstraints = {width: 2000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
         if(selectedDaypart.length === 2){
-            const {start, end} = filterWeekData(selectedDaypartRef, data.weeklyData)
-            drawCyclicTree(cyclicTreeRef, data.deltaEncoding.filter((d) => d.timestamp > start && d.timestamp < end))
+            const {start, end} = filterWeekData(selectedDaypartRef, airData.weeklyData)
+            drawCyclicTree(cyclicTreeRef, airData.deltaEncoding.filter((d) => d.timestamp > start && d.timestamp < end))
         }
-        drawStandardTree(treeRef, data, weeklyConstraints)
-    }, [data, selectedWeekPartRef, selectedDaypart]);
+        drawStandardTree(treeRef, airData, weeklyConstraints)
+    }, [airData, selectedWeekPartRef, selectedDaypart]);
 
     const changeGranularity = (val) => {
         //we're starting on 7 days so the granularity change should start from that state
@@ -1066,7 +928,7 @@ const BubbleGraphs = () => {
 
         // circle legend
         // define circle scale
-        const maxDelta = d3.max(data.deltaEncoding, d => Math.abs(d.delta));
+        const maxDelta = d3.max(airData.deltaEncoding, d => Math.abs(d.delta));
         const r = d3.scaleSqrt()
             .domain([0, maxDelta])
             .range([0, 12])
@@ -1171,7 +1033,7 @@ const BubbleGraphs = () => {
             .attr("color", "#353535");
 
 
-    }, [data, lightData]);
+    }, [airData, lightData]);
 
 
 
@@ -1197,7 +1059,7 @@ const BubbleGraphs = () => {
                     <div>
                         <svg ref={horizontalGraphRef}></svg>
                         <div>
-                            <DataViewer selectedDaypartRef={selectedDaypartRef} data={data} granularity={granularity} selectedWeekPartRef={selectedWeekPartRef} />
+                            <DataViewer selectedDaypartRef={selectedDaypartRef} data={airData} granularity={granularity} selectedWeekPartRef={selectedWeekPartRef} />
                         </div>
                     </div>
                 </div>
