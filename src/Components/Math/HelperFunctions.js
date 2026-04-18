@@ -84,3 +84,11 @@ export function filterWeekData(selectedRef, data){
     const end = new Date(sortedArray[1]);
     return {filteredData: data.filter(d => d.timestamp > start && d.timestamp < end), start, end}
 }
+// for formatting time format on x-axis
+export const customTimeFormat = (date) => {
+    if (d3.utcDay(date) < date) {
+        return d3.utcFormat("%-I %p")(date); // hour + am/pm
+    } else { // at date boundaries
+        return d3.utcFormat("%b %-d")(date); // month + day
+    }
+};
