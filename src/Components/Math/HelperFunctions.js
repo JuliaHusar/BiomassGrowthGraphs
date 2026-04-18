@@ -92,3 +92,33 @@ export const customTimeFormat = (date) => {
         return d3.utcFormat("%b %-d")(date); // month + day
     }
 };
+
+export const scaleBuilder = (airData, maxGap) => {
+    if (airData.timeData.length === 0) return;
+    const weeklyConstraints = {width: 1000, height: 500, marginTop:20, marginRight: 30, marginBottom: 30, marginLeft: 40}
+    const hasNext = new Set(
+        airData.weeklyData
+            .slice(0, -1)
+            .filter((d, i) => airData.weeklyData[i + 1].timestamp - d.timestamp <= maxGap)
+            .map(d => d.timestamp)
+    );
+    hasNext.add(airData.weeklyData.at(-1).timestamp);
+
+    const x = d3.scaleUtc(d3.extent(airData.weeklyData, d => d.timestamp), [weeklyConstraints.marginLeft, weeklyConstraints.width - weeklyConstraints.marginRight]);
+    // start y-axis from 300 to make vis larger and patterns clearer
+    const y = d3.scaleLinear([350, d3.max(airData.weeklyData, d => d.scd30_co2_ppm_input)], [weeklyConstraints.height - weeklyConstraints.marginTop, weeklyConstraints.marginBottom])
+    // encode delta with circle area
+    const r = d3.scaleSqrt([0, d3.max(airData.deltaEncoding, d => Math.abs(d.delta))], [0, 12]).clamp(true);
+    const line = d3.line()
+        .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+        .x(d => x(d.timestamp))
+        .y(d => y(d.scd30_co2_ppm_input))
+
+    const outputLine = d3.line()
+        .defined(d => !isNaN(d.timestamp) && hasNext.has(d.timestamp))
+        .x(d => x(d.timestamp))
+        .y(d => y(d.scd30_co2_ppm_output))
+
+    // for formatting time format on x-axis
+    return { x, y, r, line, outputLine };
+}
