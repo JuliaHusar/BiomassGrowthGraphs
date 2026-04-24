@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import {customTimeFormat} from "./Components/Math/HelperFunctions.js";
+import {customTimeFormat} from "../Components/Math/HelperFunctions.js";
 
 export const drawHorizontal = (weeklyConstraints, scales, horizontalGraphRef, airData, lightData, selectedDaypartRef) => {
     const { x, y, r, line, outputLine } = scales;

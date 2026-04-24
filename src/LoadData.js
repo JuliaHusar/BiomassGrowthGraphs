@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 export const getAirQuality = async () => {
-    const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
-    const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const cutoff = new Date(new Date("2026-04-15T08:00:00") - 24 * 24 * 60 * 60 * 1000);
+    const weekCutoff = new Date(new Date("2026-04-15T08:00:00") - 7 * 24 * 60 * 60 * 1000);
     try {
         const response = await fetch('04-17-26.csv')
         const text = await response.text();
@@ -80,8 +80,8 @@ export const getAirQuality = async () => {
     }
 }
 export const getLightData = async () => {
-    const cutoff = new Date(Date.now() - 24 * 24 * 60 * 60 * 1000);
-    const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const cutoff = new Date(new Date("2026-04-15T08:00:00") - 24 * 24 * 60 * 60 * 1000);
+    const weekCutoff = new Date(new Date("2026-04-15T08:00:00") - 7 * 24 * 60 * 60 * 1000);
     let returnVar = {}
     try{
 

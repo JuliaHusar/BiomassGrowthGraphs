@@ -6,9 +6,9 @@ import {cleanUp, filterWeekData} from "../Math/HelperFunctions.js";
 import DataViewer from "../DataViewer.jsx";
 import {drawStandardTree, drawCyclicTree} from "../../TreeDrawing.js";
 import {getAirQuality, getLightData} from "../../LoadData.js";
-import {drawHorizontal} from "../../DrawHorizontal.js";
-import {drawVertical} from "../../DrawVertical.js";
-import {drawLegend} from "../../DrawLegend.js";
+import {drawHorizontal} from "../../D3DrawCommands/DrawHorizontal.js";
+import {drawVertical} from "../../D3DrawCommands/DrawVertical.js";
+import {drawLegend} from "../../D3DrawCommands/DrawLegend.js";
 
 const BubbleGraphs = () => {
     const horizontalGraphRef = useRef();
